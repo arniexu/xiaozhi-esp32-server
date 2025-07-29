@@ -7,6 +7,7 @@ from core.handle.receiveAudioHandle import startToChat, handleAudioMessage
 from core.handle.sendAudioHandle import send_stt_message, send_tts_message
 from core.providers.tools.device_iot import handleIotDescriptors, handleIotStatus
 from core.handle.reportHandle import enqueue_asr_report
+from core.handle.faceHandle import add_person, find_person, list_people
 import asyncio
 
 TAG = __name__
@@ -81,6 +82,59 @@ async def handleTextMessage(conn, message):
             if "payload" in msg_json:
                 asyncio.create_task(
                     handle_mcp_message(conn, conn.mcp_client, msg_json["payload"])
+                )
+        elif msg_json["type"] == "face":
+            # 有三种，添加生人，查找已添加的人的名字，列出所有已添加人的名字
+            conn.logger.bind(tag=TAG).info(f"收到人脸消息：{message}")
+            if "action" in msg_json:
+                action = msg_json["action"]
+                conn.logger.bind(tag=TAG).info(f"人脸操作类型：{action}")
+                
+                if action == "add":
+                    # 添加生人，两个参数，name和image
+                    conn.logger.bind(tag=TAG).info("开始处理添加人员请求")
+                    if "image" not in msg_json or "name" not in msg_json:
+                        conn.logger.bind(tag=TAG).error("添加人员失败：缺少必要参数 name 或 image")
+                        await conn.websocket.send(
+                            json.dumps({"type": "face", "status": "error", "message": "缺少参数"})
+                        )
+                        return                        
+                    name = msg_json["name"]
+                    image = msg_json["image"]
+                    conn.logger.bind(tag=TAG).info(f"准备添加人员：{name}，图片数据长度：{len(image) if image else 0}")
+                    # 添加生人
+                    await add_person(conn, name, image)
+                    conn.logger.bind(tag=TAG).info(f"完成添加人员请求：{name}")
+                    
+                elif action == "find":
+                    # 参数是image返回是name
+                    conn.logger.bind(tag=TAG).info("开始处理查找人员请求")
+                    image = msg_json.get("image", "")
+                    if not image:
+                        conn.logger.bind(tag=TAG).error("查找人员失败：缺少图片数据")
+                        await conn.websocket.send(
+                            json.dumps({"type": "face", "status": "error", "message": "缺少图片数据"})
+                        )
+                        return
+                    conn.logger.bind(tag=TAG).info(f"准备查找人员，图片数据长度：{len(image)}")
+                    result = await find_person(conn, image)
+                    conn.logger.bind(tag=TAG).info("完成查找人员请求")
+                    
+                elif action == "list":
+                    # 没有参数
+                    conn.logger.bind(tag=TAG).info("开始处理列出所有人员请求")
+                    names = await list_people(conn)
+                    conn.logger.bind(tag=TAG).info("完成列出所有人员请求")
+                    
+                else:
+                    conn.logger.bind(tag=TAG).error(f"未知的人脸操作类型：{action}")
+                    await conn.websocket.send(
+                        json.dumps({"type": "face", "status": "error", "message": f"未知操作类型：{action}"})
+                    )
+            else:
+                conn.logger.bind(tag=TAG).error("人脸消息缺少 action 参数")
+                await conn.websocket.send(
+                    json.dumps({"type": "face", "status": "error", "message": "缺少操作类型参数"})
                 )
         elif msg_json["type"] == "server":
             # 记录日志时过滤敏感信息

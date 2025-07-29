@@ -1,0 +1,55 @@
+#!/bin/bash
+# OSS配置脚本
+
+echo "🚀 阿里云OSS配置指南"
+echo "==============================================="
+echo ""
+echo "为了使用真正的阿里云人脸识别功能，您需要配置OSS存储服务。"
+echo ""
+echo "📋 配置步骤："
+echo ""
+echo "1. 登录阿里云控制台"
+echo "   URL: https://oss.console.aliyun.com/"
+echo ""
+echo "2. 创建OSS Bucket"
+echo "   - Bucket名称: faces-my-shanghai (已配置)"
+echo "   - OSS区域: cn-shanghai"
+echo "   - 人脸识别区域: cn-shanghai"
+echo "   - 存储类型: 标准存储"
+echo "   - 读写权限: 公共读 (重要！阿里云人脸识别服务需要访问图片)"
+echo "   - 服务端加密: 无"
+echo "   ⚠️  重要：OSS区域必须与人脸识别服务区域相同！"
+echo "   ⚠️  重要：必须设置为'公共读'，否则人脸识别API无法访问图片！"
+echo ""
+echo "3. 修改代码中的OSS配置"
+echo "   如果您使用了不同的bucket名称或区域，请修改以下文件："
+echo "   文件: core/handle/faceHandle.py"
+echo "   变量: OSS_BUCKET_NAME, OSS_REGION, FACEBODY_REGION"
+echo ""
+echo "4. 确保环境变量已设置"
+echo "   当前环境变量状态:"
+if [ -n "$ALIBABA_CLOUD_ACCESS_KEY_ID" ]; then
+    echo "   ✅ ALIBABA_CLOUD_ACCESS_KEY_ID: 已设置"
+else
+    echo "   ❌ ALIBABA_CLOUD_ACCESS_KEY_ID: 未设置"
+fi
+
+if [ -n "$ALIBABA_CLOUD_ACCESS_KEY_SECRET" ]; then
+    echo "   ✅ ALIBABA_CLOUD_ACCESS_KEY_SECRET: 已设置"
+else
+    echo "   ❌ ALIBABA_CLOUD_ACCESS_KEY_SECRET: 未设置"
+fi
+echo ""
+echo "5. 测试OSS连接"
+echo "   运行以下命令测试OSS连接："
+echo "   python3 test_oss_connection.py"
+echo ""
+echo "💡 提示："
+echo "   - OSS服务会产生少量费用（图片存储和流量费用）"
+echo "   - 人脸图片会自动上传到您的OSS bucket中"
+echo "   - 搜索完成后临时图片会自动删除"
+echo ""
+echo "📞 如果遇到问题："
+echo "   - 检查OSS bucket是否创建成功"
+echo "   - 确认访问密钥权限包含OSS和人脸识别服务"
+echo "   - 验证区域设置是否一致"
