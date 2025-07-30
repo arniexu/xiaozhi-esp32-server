@@ -3,6 +3,7 @@ from aiohttp import web
 from config.logger import setup_logging
 from core.api.ota_handler import OTAHandler
 from core.api.vision_handler import VisionHandler
+from core.api.image_handler import ImageUploadHandler
 
 TAG = __name__
 
@@ -13,17 +14,10 @@ class SimpleHttpServer:
         self.logger = setup_logging()
         self.ota_handler = OTAHandler(config)
         self.vision_handler = VisionHandler(config)
+        self.image_upload_handler = ImageUploadHandler(config)
 
     def _get_websocket_url(self, local_ip: str, port: int) -> str:
-        """获取websocket地址
-
-        Args:
-            local_ip: 本地IP地址
-            port: 端口号
-
-        Returns:
-            str: websocket地址
-        """
+        """获取websocket地址"""
         server_config = self.config["server"]
         websocket_config = server_config.get("websocket")
 
@@ -32,40 +26,91 @@ class SimpleHttpServer:
         else:
             return f"ws://{local_ip}:{port}/xiaozhi/v1/"
 
+    async def _handle_root(self, request):
+        """处理根路径请求"""
+        response = web.Response(text="xiaozhi-server is running with image upload support")
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+
+    async def _handle_cors_preflight(self, request):
+        """处理CORS预检请求"""
+        response = web.Response()
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Max-Age'] = '86400'
+        return response
+
     async def start(self):
-        server_config = self.config["server"]
-        host = server_config.get("ip", "0.0.0.0")
-        port = int(server_config.get("http_port", 8003))
+        try:
+            server_config = self.config["server"]
+            host = server_config.get("ip", "0.0.0.0")
+            port = int(server_config.get("http_port", 8003))
 
-        if port:
-            app = web.Application()
+            self.logger.bind(tag=TAG).info(f"正在启动HTTP服务器 {host}:{port}")
 
-            read_config_from_api = server_config.get("read_config_from_api", False)
+            if port:
+                app = web.Application()
 
-            if not read_config_from_api:
-                # 如果没有开启智控台，只是单模块运行，就需要再添加简单OTA接口，用于下发websocket接口
-                app.add_routes(
-                    [
-                        web.get("/xiaozhi/ota/", self.ota_handler.handle_get),
-                        web.post("/xiaozhi/ota/", self.ota_handler.handle_post),
-                        web.options("/xiaozhi/ota/", self.ota_handler.handle_post),
-                    ]
-                )
-            # 添加路由
-            app.add_routes(
-                [
+                read_config_from_api = server_config.get("read_config_from_api", False)
+
+                # 添加基础路由
+                routes = []
+                
+                # 根路径
+                routes.append(web.get("/", self._handle_root))
+                
+                # Vision相关路由
+                routes.extend([
                     web.get("/mcp/vision/explain", self.vision_handler.handle_get),
                     web.post("/mcp/vision/explain", self.vision_handler.handle_post),
-                    web.options("/mcp/vision/explain", self.vision_handler.handle_post),
-                ]
-            )
+                    web.options("/mcp/vision/explain", self._handle_cors_preflight),
+                ])
+                
+                # 图片上传路由
+                routes.extend([
+                    web.post("/api/upload/image", self.image_upload_handler.handle_post),
+                    web.get("/api/upload/image", self.image_upload_handler.handle_get),
+                    web.options("/api/upload/image", self.image_upload_handler.handle_options),
+                ])
 
-            # 运行服务
-            runner = web.AppRunner(app)
-            await runner.setup()
-            site = web.TCPSite(runner, host, port)
-            await site.start()
+                if not read_config_from_api:
+                    # OTA路由
+                    routes.extend([
+                        web.get("/xiaozhi/ota/", self.ota_handler.handle_get),
+                        web.post("/xiaozhi/ota/", self.ota_handler.handle_post),
+                        web.options("/xiaozhi/ota/", self._handle_cors_preflight),
+                    ])
 
-            # 保持服务运行
-            while True:
-                await asyncio.sleep(3600)  # 每隔 1 小时检查一次
+                # 添加所有路由
+                app.add_routes(routes)
+                
+                # 添加静态文件服务 - 用于访问上传的图片
+                try:
+                    upload_dir = self.image_upload_handler.upload_dir
+                    app.router.add_static('/uploads/', upload_dir, name='uploads')
+                    self.logger.bind(tag=TAG).info(f"静态文件目录配置成功: {upload_dir}")
+                except Exception as e:
+                    self.logger.bind(tag=TAG).error(f"静态文件服务配置失败: {e}")
+
+                # 运行服务
+                runner = web.AppRunner(app)
+                await runner.setup()
+                site = web.TCPSite(runner, host, port)
+                await site.start()
+                
+                self.logger.bind(tag=TAG).info(f"✅ HTTP服务器启动成功: http://{host}:{port}")
+                self.logger.bind(tag=TAG).info(f"📤 图片上传接口: http://{host}:{port}/api/upload/image")
+                self.logger.bind(tag=TAG).info(f"📁 静态文件访问: http://{host}:{port}/uploads/")
+
+                # 保持服务运行
+                try:
+                    while True:
+                        await asyncio.sleep(3600)
+                except KeyboardInterrupt:
+                    self.logger.bind(tag=TAG).info("服务器正在关闭...")
+                    await runner.cleanup()
+                    
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"HTTP服务器启动失败: {e}")
+            raise e

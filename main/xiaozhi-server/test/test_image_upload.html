@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本地图片上传测试 - xiaozhi-server</title>
+    <style>
+        body { 
+            font-family: 'Arial', 'Microsoft YaHei', sans-serif; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; text-align: center; margin-bottom: 30px; }
+        .upload-area { 
+            border: 2px dashed #ccc; 
+            padding: 40px; 
+            text-align: center; 
+            margin: 20px 0;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        .upload-area.dragover { 
+            border-color: #007bff; 
+            background-color: #f8f9fa; 
+            transform: scale(1.02);
+        }
+        button { 
+            background: linear-gradient(45deg, #007bff, #0056b3); 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            cursor: pointer; 
+            border-radius: 5px;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        button:hover { 
+            background: linear-gradient(45deg, #0056b3, #004085); 
+            transform: translateY(-2px);
+        }
+        .result { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border-radius: 8px; 
+            border-left: 4px solid;
+        }
+        .success { 
+            background: #d4edda; 
+            color: #155724; 
+            border-left-color: #28a745;
+        }
+        .error { 
+            background: #f8d7da; 
+            color: #721c24; 
+            border-left-color: #dc3545;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left-color: #17a2b8;
+        }
+        input[type="file"] { 
+            margin: 10px 0; 
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #preview { 
+            max-width: 300px; 
+            margin: 10px auto; 
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .config-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .config-section input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .uploaded-image {
+            max-width: 400px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖼️ 本地图片上传测试</h1>
+        
+        <div class="config-section">
+            <h3>📡 服务器配置</h3>
+            <label>服务器地址:</label>
+            <input type="text" id="serverUrl" value="http://172.17.110.229:8003" placeholder="http://server:port">
+        </div>
+        
+        <div class="upload-area" id="uploadArea">
+            <p>🎯 拖拽图片到这里或点击选择文件</p>
+            <p>💾 图片将保存到服务器本地存储</p>
+            <input type="file" id="fileInput" accept="image/*">
+            <br><br>
+            <button onclick="uploadMultipart()">📤 Multipart上传</button>
+            <button onclick="uploadBase64()">🔗 Base64上传</button>
+            <button onclick="testAPI()">🔍 测试API</button>
+        </div>
+        
+        <img id="preview" style="display: none;">
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const preview = document.getElementById('preview');
+        const result = document.getElementById('result');
+        const serverUrlInput = document.getElementById('serverUrl');
+
+        function getServerUrl() {
+            return serverUrlInput.value.trim() || 'http://172.17.110.229:8003';
+        }
+
+        // 点击上传区域选择文件
+        uploadArea.addEventListener('click', (e) => {
+            if (e.target.tagName !== 'BUTTON') {
+                fileInput.click();
+            }
+        });
+
+        // 文件选择事件
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // 拖拽事件
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            // 验证文件类型
+            if (!file.type.startsWith('image/')) {
+                showResult('请选择图片文件', 'error');
+                return;
+            }
+
+            // 验证文件大小 (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showResult('文件大小不能超过 5MB', 'error');
+                return;
+            }
+
+            // 预览图片
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                showResult(`✅ 已选择文件: ${file.name} (${(file.size/1024/1024).toFixed(2)}MB)`, 'info');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function uploadMultipart() {
+            const file = fileInput.files[0];
+            if (!file) {
+                showResult('请先选择一个图片文件', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                showResult('🚀 正在通过 Multipart 方式上传到本地服务器...', 'info');
+                
+                const response = await fetch(`${getServerUrl()}/api/upload/image`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showResult(`
+                        🎉 Multipart 本地上传成功！<br>
+                        📁 原文件名: ${data.data.filename}<br>
+                        💾 保存文件名: ${data.data.saved_filename}<br>
+                        📏 文件大小: ${(data.data.file_size/1024/1024).toFixed(2)}MB<br>
+                        📍 服务器路径: <code>${data.data.file_path}</code><br>
+                        🔗 访问URL: <a href="${data.data.file_url}" target="_blank">${data.data.file_url}</a><br>
+                        🕒 上传时间: ${data.data.upload_time}<br>
+                        📋 MIME类型: ${data.data.mime_type}<br><br>
+                        <img src="${data.data.file_url}" class="uploaded-image" alt="上传的图片">
+                    `, 'success');
+                } else {
+                    showResult(`❌ Multipart 上传失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`💥 Multipart 上传错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function uploadBase64() {
+            const file = fileInput.files[0];
+            if (!file) {
+                showResult('请先选择一个图片文件', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    showResult('🚀 正在通过 Base64 方式上传到本地服务器...', 'info');
+                    
+                    const response = await fetch(`${getServerUrl()}/api/upload/image`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            image: e.target.result,
+                            filename: file.name
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        showResult(`
+                            🎉 Base64 本地上传成功！<br>
+                            📁 原文件名: ${data.data.filename}<br>
+                            💾 保存文件名: ${data.data.saved_filename}<br>
+                            📏 文件大小: ${(data.data.file_size/1024/1024).toFixed(2)}MB<br>
+                            📍 服务器路径: <code>${data.data.file_path}</code><br>
+                            🔗 访问URL: <a href="${data.data.file_url}" target="_blank">${data.data.file_url}</a><br>
+                            🕒 上传时间: ${data.data.upload_time}<br>
+                            📋 MIME类型: ${data.data.mime_type}<br><br>
+                            <img src="${data.data.file_url}" class="uploaded-image" alt="上传的图片">
+                        `, 'success');
+                    } else {
+                        showResult(`❌ Base64 上传失败: ${data.message}`, 'error');
+                    }
+                } catch (error) {
+                    showResult(`💥 Base64 上传错误: ${error.message}`, 'error');
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function testAPI() {
+            try {
+                showResult('🔍 正在测试本地存储API接口...', 'info');
+                
+                const response = await fetch(`${getServerUrl()}/api/upload/image`, {
+                    method: 'GET'
+                });
+
+                const data = await response.json();
+                
+                showResult(`
+                    📋 本地存储API 接口信息:<br>
+                    🏷️ 服务: ${data.service}<br>
+                    📦 版本: ${data.version}<br>
+                    💾 存储方式: ${data.storage}<br>
+                    📁 上传目录: <code>${data.upload_directory}</code><br>
+                    📤 上传接口: ${data.endpoints.upload.url}<br>
+                    📏 最大文件: ${data.endpoints.upload.max_file_size}<br>
+                    🎯 支持格式: ${data.endpoints.upload.allowed_types.join(', ')}<br>
+                    🔗 访问接口: ${data.endpoints.access.url}<br>
+                    💡 Multipart 示例: <code>${data.examples.multipart}</code><br>
+                    💡 JSON 示例: <code>${data.examples.json}</code>
+                `, 'success');
+                
+            } catch (error) {
+                showResult(`💥 API 测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        function showResult(message, type) {
+            result.innerHTML = `<div class="${type}">${message}</div>`;
+            result.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 页面加载时自动测试API
+        window.addEventListener('load', () => {
+            setTimeout(testAPI, 1000);
+        });
+    </script>
+</body>
+</html>
