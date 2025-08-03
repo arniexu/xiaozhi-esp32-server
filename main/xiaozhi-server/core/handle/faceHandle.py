@@ -237,15 +237,47 @@ def _save_face_data(data):
         ConsoleClient.log(f'保存本地人脸数据失败: {str(e)}')
 
 
-async def add_person(conn, name: str, image: str):
+async def add_person(conn, name: str, image_path: str):
     """
     添加人员
     @param conn: 连接对象
     @param name: 人员姓名
-    @param image: base64编码的图片数据
+    @param image_path: 图片文件路径
     """
     ConsoleClient.log(f'开始添加人员: {name}')
     try:
+        # 检查图片文件是否存在
+        if not os.path.exists(image_path):
+            error_msg = f"图片文件不存在: {image_path}"
+            ConsoleClient.log(f'❌ {error_msg}')
+            await conn.websocket.send(
+                json.dumps({
+                    "type": "face", 
+                    "action": "add",
+                    "status": "error", 
+                    "message": error_msg
+                })
+            )
+            return
+        
+        # 读取图片文件并转换为base64
+        try:
+            with open(image_path, 'rb') as f:
+                image_data = f.read()
+                image_base64 = base64.b64encode(image_data).decode('utf-8')
+            ConsoleClient.log(f'✅ 成功读取图片文件: {image_path}, 大小: {len(image_data)} bytes')
+        except Exception as e:
+            error_msg = f"读取图片文件失败: {str(e)}"
+            ConsoleClient.log(f'❌ {error_msg}')
+            await conn.websocket.send(
+                json.dumps({
+                    "type": "face", 
+                    "action": "add",
+                    "status": "error", 
+                    "message": error_msg
+                })
+            )
+            return
         # 创建Facebody客户端
         ConsoleClient.log(f'创建Facebody客户端，区域: {FACEBODY_REGION}')
         client = Sample.create_client(FACEBODY_REGION)
@@ -265,11 +297,14 @@ async def add_person(conn, name: str, image: str):
         try:
             # 上传图片到OSS (使用英文文件名避免编码问题)
             timestamp = int(time.time())
+            # 从文件路径提取文件名和扩展名
+            original_filename = os.path.basename(image_path)
+            file_extension = os.path.splitext(original_filename)[1] or '.jpg'
             # 使用英文文件名避免URL编码问题
-            filename = f"person_{timestamp}_{entity_id}.jpg"
-            ConsoleClient.log(f'🔄 上传图片到OSS: {filename}')
+            filename = f"person_{timestamp}_{entity_id}{file_extension}"
+            ConsoleClient.log(f'🔄 上传图片到OSS: {filename} (原文件: {original_filename})')
             
-            oss_url = _upload_image_to_oss(image, filename)
+            oss_url = _upload_image_to_oss(image_base64, filename)
             
             # 使用OSS URL调用阿里云人脸添加API
             ConsoleClient.log(f'🔄 使用OSS URL调用阿里云API添加人脸: {oss_url}')
@@ -285,6 +320,7 @@ async def add_person(conn, name: str, image: str):
                 "entity_id": entity_id,
                 "oss_url": oss_url,
                 "filename": filename,
+                "original_image_path": image_path,
                 "created_at": timestamp
             }
             ConsoleClient.log(f'保存人员信息到数据库: {name} -> {entity_id}')
@@ -301,6 +337,7 @@ async def add_person(conn, name: str, image: str):
                         "name": name, 
                         "entity_id": entity_id,
                         "oss_url": oss_url,
+                        "original_image_path": image_path,
                         "method": "alibaba_cloud_with_oss"
                     }
                 })
@@ -313,6 +350,7 @@ async def add_person(conn, name: str, image: str):
             face_data[entity_id] = {
                 "name": name,
                 "entity_id": entity_id,
+                "original_image_path": image_path,
                 "created_at": time.time(),
                 "error": str(e)
             }
@@ -331,14 +369,46 @@ async def add_person(conn, name: str, image: str):
         )
 
 
-async def find_person(conn, image: str):
+async def find_person(conn, image_path: str):
     """
     查找人员
     @param conn: 连接对象
-    @param image: base64编码的图片数据
+    @param image_path: 图片文件路径
     """
     ConsoleClient.log('开始查找人员')
     try:
+        # 检查图片文件是否存在
+        if not os.path.exists(image_path):
+            error_msg = f"图片文件不存在: {image_path}"
+            ConsoleClient.log(f'❌ {error_msg}')
+            await conn.websocket.send(
+                json.dumps({
+                    "type": "face", 
+                    "action": "find",
+                    "status": "error", 
+                    "message": error_msg
+                })
+            )
+            return
+        
+        # 读取图片文件并转换为base64
+        try:
+            with open(image_path, 'rb') as f:
+                image_data = f.read()
+                image_base64 = base64.b64encode(image_data).decode('utf-8')
+            ConsoleClient.log(f'✅ 成功读取搜索图片文件: {image_path}, 大小: {len(image_data)} bytes')
+        except Exception as e:
+            error_msg = f"读取图片文件失败: {str(e)}"
+            ConsoleClient.log(f'❌ {error_msg}')
+            await conn.websocket.send(
+                json.dumps({
+                    "type": "face", 
+                    "action": "find",
+                    "status": "error", 
+                    "message": error_msg
+                })
+            )
+            return
         # 创建Facebody客户端
         ConsoleClient.log(f'创建Facebody客户端，区域: {FACEBODY_REGION}')
         client = Sample.create_client(FACEBODY_REGION)
@@ -346,10 +416,13 @@ async def find_person(conn, image: str):
         try:
             # 上传搜索图片到OSS
             timestamp = int(time.time())
-            search_filename = f"search_{timestamp}_{uuid.uuid4().hex[:8]}.jpg"
-            ConsoleClient.log(f'🔄 上传搜索图片到OSS: {search_filename}')
+            # 从文件路径提取文件扩展名
+            original_filename = os.path.basename(image_path)
+            file_extension = os.path.splitext(original_filename)[1] or '.jpg'
+            search_filename = f"search_{timestamp}_{uuid.uuid4().hex[:8]}{file_extension}"
+            ConsoleClient.log(f'🔄 上传搜索图片到OSS: {search_filename} (原文件: {original_filename})')
             
-            search_oss_url = _upload_image_to_oss(image, search_filename)
+            search_oss_url = _upload_image_to_oss(image_base64, search_filename)
             
             # 使用OSS URL调用阿里云人脸搜索API
             ConsoleClient.log(f'🔍 使用OSS URL调用阿里云人脸搜索API: {search_oss_url}')
@@ -491,5 +564,188 @@ async def list_people(conn):
                 "action": "list",
                 "status": "error", 
                 "message": f"列出人员失败: {str(e)}"
+            })
+        )
+
+
+async def search_face(conn, image_path: str, limit: int = 5, threshold: float = 80.0):
+    """
+    搜索人脸（高级版本，支持多个结果和置信度阈值）
+    @param conn: 连接对象
+    @param image_path: 图片文件路径
+    @param limit: 返回结果数量限制
+    @param threshold: 置信度阈值（0-100）
+    """
+    ConsoleClient.log(f'开始搜索人脸，limit: {limit}, threshold: {threshold}')
+    try:
+        # 检查图片文件是否存在
+        if not os.path.exists(image_path):
+            error_msg = f"图片文件不存在: {image_path}"
+            ConsoleClient.log(f'❌ {error_msg}')
+            await conn.websocket.send(
+                json.dumps({
+                    "type": "face", 
+                    "action": "search",
+                    "status": "error", 
+                    "message": error_msg
+                })
+            )
+            return
+        
+        # 读取图片文件并转换为base64
+        try:
+            with open(image_path, 'rb') as f:
+                image_data = f.read()
+                image_base64 = base64.b64encode(image_data).decode('utf-8')
+            ConsoleClient.log(f'✅ 成功读取搜索图片文件: {image_path}, 大小: {len(image_data)} bytes')
+        except Exception as e:
+            error_msg = f"读取图片文件失败: {str(e)}"
+            ConsoleClient.log(f'❌ {error_msg}')
+            await conn.websocket.send(
+                json.dumps({
+                    "type": "face", 
+                    "action": "search",
+                    "status": "error", 
+                    "message": error_msg
+                })
+            )
+            return
+        
+        # 创建Facebody客户端
+        ConsoleClient.log(f'创建Facebody客户端，区域: {FACEBODY_REGION}')
+        client = Sample.create_client(FACEBODY_REGION)
+        
+        try:
+            # 上传搜索图片到OSS
+            timestamp = int(time.time())
+            # 从文件路径提取文件扩展名
+            original_filename = os.path.basename(image_path)
+            file_extension = os.path.splitext(original_filename)[1] or '.jpg'
+            search_filename = f"search_{timestamp}_{uuid.uuid4().hex[:8]}{file_extension}"
+            ConsoleClient.log(f'🔄 上传搜索图片到OSS: {search_filename} (原文件: {original_filename})')
+            
+            search_oss_url = _upload_image_to_oss(image_base64, search_filename)
+            
+            # 使用OSS URL调用阿里云人脸搜索API
+            ConsoleClient.log(f'🔍 使用OSS URL调用阿里云人脸搜索API: {search_oss_url}, limit: {limit}')
+            
+            # 调用阿里云人脸搜索API
+            response = Sample.search_face(
+                client=client,
+                db_name=FACE_DB_NAME,
+                image_url=search_oss_url,
+                limit=limit
+            )
+            
+            if response and response.body and response.body.data:
+                match_list = response.body.data.match_list
+                
+                if match_list and len(match_list) > 0:
+                    # 获取本地人脸数据
+                    face_data = _get_face_data()
+                    
+                    # 处理所有匹配结果
+                    results = []
+                    for match in match_list:
+                        entity_id = None
+                        confidence = 0.0
+                        
+                        # 尝试从 face_items 获取匹配信息
+                        if hasattr(match, 'face_items') and match.face_items:
+                            face_item = match.face_items[0]  # 获取第一个面部项
+                            entity_id = getattr(face_item, 'entity_id', None)
+                            confidence = getattr(face_item, 'score', 0.0)
+                        else:
+                            # 尝试其他可能的属性名
+                            entity_id = getattr(match, 'entity_id', None) or getattr(match, 'face_id', None) or getattr(match, 'id', None)
+                            confidence = getattr(match, 'score', 0.0) or getattr(match, 'qualitie_score', 0.0)
+                        
+                        # 应用置信度阈值过滤
+                        if entity_id and confidence >= threshold:
+                            person_info = face_data.get(entity_id, {})
+                            person_name = person_info.get('name', '未知')
+                            
+                            results.append({
+                                "name": person_name,
+                                "entity_id": entity_id,
+                                "confidence": confidence,
+                                "rank": len(results) + 1
+                            })
+                            
+                            ConsoleClient.log(f'✅ 找到匹配 #{len(results)}: {person_name} (entity_id: {entity_id}, 置信度: {confidence})')
+                    
+                    if results:
+                        ConsoleClient.log(f'✅ 阿里云搜索成功，找到 {len(results)} 个匹配结果（置信度 >= {threshold}）')
+                        
+                        await conn.websocket.send(
+                            json.dumps({
+                                "type": "face", 
+                                "action": "search",
+                                "status": "success", 
+                                "message": f"找到 {len(results)} 个匹配的人员",
+                                "data": {
+                                    "count": len(results),
+                                    "threshold": threshold,
+                                    "limit": limit,
+                                    "results": results,
+                                    "search_method": "alibaba_cloud_with_oss"
+                                }
+                            })
+                        )
+                    else:
+                        ConsoleClient.log(f'❌ 阿里云搜索失败：没有找到置信度 >= {threshold} 的匹配结果')
+                        
+                        await conn.websocket.send(
+                            json.dumps({
+                                "type": "face", 
+                                "action": "search",
+                                "status": "error", 
+                                "message": f"未找到置信度 >= {threshold} 的匹配人员",
+                                "data": {
+                                    "threshold": threshold,
+                                    "limit": limit,
+                                    "search_method": "alibaba_cloud_with_oss"
+                                }
+                            })
+                        )
+                else:
+                    ConsoleClient.log('❌ 阿里云搜索失败：未找到任何匹配的人员')
+                    
+                    await conn.websocket.send(
+                        json.dumps({
+                            "type": "face", 
+                            "action": "search",
+                            "status": "error", 
+                            "message": "未找到匹配的人员",
+                            "data": {
+                                "threshold": threshold,
+                                "limit": limit,
+                                "search_method": "alibaba_cloud_with_oss"
+                            }
+                        })
+                    )
+            else:
+                raise Exception(f"阿里云API返回错误: {response.body.message if response.body else 'Unknown error'}")
+                
+            # 清理搜索图片（可选）
+            try:
+                bucket = _get_oss_bucket()
+                bucket.delete_object(f"faces/{search_filename}")
+                ConsoleClient.log(f'🗑️  清理搜索图片: {search_filename}')
+            except:
+                pass  # 清理失败不影响主要功能
+                
+        finally:
+            # 不再需要清理临时文件
+            pass
+                
+    except Exception as e:
+        ConsoleClient.log(f'搜索人脸失败: {str(e)}')
+        await conn.websocket.send(
+            json.dumps({
+                "type": "face", 
+                "action": "search",
+                "status": "error", 
+                "message": f"搜索人脸失败: {str(e)}"
             })
         )
