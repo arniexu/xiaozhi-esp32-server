@@ -1,0 +1,19 @@
+[Unit]
+Description=XiaoZhi ESP32 Server Service
+Documentation=https://github.com/arniexu/xiaozhi-esp32-server
+After=network.target manager-web.service
+Wants=network-online.target
+Requires=manager-web.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/xuqianjin/xiaozhi-esp32-server/main/xiaozhi-server
+# 启动命令
+ExecStart=sudo python3 app.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

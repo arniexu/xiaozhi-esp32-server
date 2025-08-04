@@ -1,0 +1,18 @@
+[Unit]
+Description=XiaoZhi ESP32 Manager API Service
+Documentation=https://github.com/arniexu/xiaozhi-esp32-server
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/xuqianjin/xiaozhi-esp32-server/main/manager-api
+# 启动命令
+ExecStart=sudo mvn spring-boot:run
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
