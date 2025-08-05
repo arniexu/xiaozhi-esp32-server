@@ -21,6 +21,9 @@ from alibabacloud_tea_console.client import Client as ConsoleClient
 from alibabacloud_darabonba_string.client import Client as StringClient
 from alibabacloud_tea_util.client import Client as UtilClient
 
+# 导入新的阿里云配置读取器
+from core.utils.alibaba_config import alibaba_config
+
 
 # 人脸数据库配置
 FACE_DB_NAME = "xiaozhi_faces"
@@ -41,22 +44,26 @@ def _get_oss_bucket():
     global _oss_bucket
     if _oss_bucket is None:
         try:
-            # 获取访问密钥
-            access_key_id = EnvClient.get_env('ALIBABA_CLOUD_ACCESS_KEY_ID')
-            access_key_secret = EnvClient.get_env('ALIBABA_CLOUD_ACCESS_KEY_SECRET')
+            # 从新的配置读取器获取密钥
+            access_key_id = alibaba_config.get_access_key_id()
+            access_key_secret = alibaba_config.get_access_key_secret()
             
             if not access_key_id or not access_key_secret:
-                raise Exception("请设置 ALIBABA_CLOUD_ACCESS_KEY_ID 和 ALIBABA_CLOUD_ACCESS_KEY_SECRET 环境变量")
+                raise Exception("请在data/alibaba_cloud.yaml中配置access_key_id和access_key_secret")
+            
+            # 从配置读取OSS配置
+            oss_endpoint = alibaba_config.get_oss_endpoint()
+            oss_bucket_name = alibaba_config.get_oss_bucket_name()
             
             # 初始化OSS
             auth = oss2.Auth(access_key_id, access_key_secret)
-            _oss_bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET_NAME)
+            _oss_bucket = oss2.Bucket(auth, oss_endpoint, oss_bucket_name)
             
-            ConsoleClient.log(f'✅ OSS初始化成功 (Bucket: {OSS_BUCKET_NAME})')
+            ConsoleClient.log(f'✅ OSS初始化成功 (Bucket: {oss_bucket_name}, Endpoint: {oss_endpoint})')
             
         except Exception as e:
             ConsoleClient.log(f'❌ OSS初始化失败: {str(e)}')
-            ConsoleClient.log('💡 提示: 请先创建OSS bucket或检查配置')
+            ConsoleClient.log('💡 提示: 请在data/alibaba_cloud.yaml中配置阿里云密钥')
             raise e
     
     return _oss_bucket
@@ -81,8 +88,12 @@ def _upload_image_to_oss(image_base64: str, filename: str) -> str:
         result = bucket.put_object(object_key, image_data)
         
         if result.status == 200:
+            # 从配置动态生成OSS URL
+            oss_endpoint = alibaba_config.get_oss_endpoint()
+            oss_bucket_name = alibaba_config.get_oss_bucket_name()
+            
             # 生成公开访问的OSS URL（需要bucket设置为公共读）
-            oss_url = f"https://{OSS_BUCKET_NAME}.oss-cn-shanghai.aliyuncs.com/{object_key}"
+            oss_url = f"https://{oss_bucket_name}.{oss_endpoint.replace('https://', '')}/{object_key}"
             ConsoleClient.log(f'✅ 图片上传OSS成功: {oss_url}')
             return oss_url
         else:
@@ -108,10 +119,9 @@ class Sample:
         @throws Exception
         """
         config = open_api_models.Config()
-        # 您的AccessKey ID
-        config.access_key_id = EnvClient.get_env('ALIBABA_CLOUD_ACCESS_KEY_ID')
-        # 您的AccessKey Secret
-        config.access_key_secret = EnvClient.get_env('ALIBABA_CLOUD_ACCESS_KEY_SECRET')
+        # 从新的配置读取器获取密钥
+        config.access_key_id = alibaba_config.get_access_key_id()
+        config.access_key_secret = alibaba_config.get_access_key_secret()
         # 您的可用区ID
         config.region_id = region_id
         return FacebodyClient(config)
@@ -237,12 +247,13 @@ def _save_face_data(data):
         ConsoleClient.log(f'保存本地人脸数据失败: {str(e)}')
 
 
-async def add_person(conn, name: str, image_path: str):
+async def add_person(conn, name: str, image_path: str, request_id: str = None):
     """
     添加人员
     @param conn: 连接对象
     @param name: 人员姓名
     @param image_path: 图片文件路径
+    @param request_id: 请求ID（可选）
     """
     ConsoleClient.log(f'开始添加人员: {name}')
     try:

@@ -84,6 +84,15 @@ xiaozhi:
     channels: 1
     frame_duration: 60
 
+# 阿里云配置 - 用于人脸识别等服务
+alibaba_cloud:
+  access_key_id: 你的阿里云access_key_id
+  access_key_secret: 你的阿里云access_key_secret
+  endpoint: https://facebody.cn-shanghai.aliyuncs.com
+  oss:
+    endpoint: https://oss-cn-hangzhou.aliyuncs.com
+    bucket_name: 你的OSS存储桶名称
+
 # 模块测试配置
 module_test:
   test_sentences:

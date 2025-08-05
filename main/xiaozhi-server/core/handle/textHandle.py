@@ -132,10 +132,120 @@ async def handleTextMessage(conn, message):
                 conn.logger.bind(tag=TAG).warning(f"MCP消息缺少payload字段")
             conn.logger.bind(tag=TAG).debug(f"mcp消息处理完成")
         elif msg_json["type"] == "face":
-            # 有三种，添加生人，查找已添加的人的名字，列出所有已添加人的名字
+            # 支持新版payload格式和旧版直接参数格式
             conn.logger.bind(tag=TAG).info(f"收到人脸消息：{message}")
             conn.logger.bind(tag=TAG).debug(f"开始处理人脸消息")
-            if "action" in msg_json:
+            
+            # 提取request_id（如果存在）
+            request_id = msg_json.get("request_id", None)
+            
+            # 检查是否为新版payload格式
+            if "payload" in msg_json and isinstance(msg_json["payload"], dict):
+                # 新版payload格式
+                payload = msg_json["payload"]
+                if "action" not in payload:
+                    conn.logger.bind(tag=TAG).error("人脸消息payload缺少 action 参数")
+                    response = {"type": "face", "status": "error", "message": "缺少操作类型参数"}
+                    if request_id:
+                        response["request_id"] = request_id
+                    await conn.websocket.send(json.dumps(response))
+                    return
+                    
+                action = payload["action"]
+                conn.logger.bind(tag=TAG).info(f"人脸操作类型：{action}")
+                
+                if action == "add_face":
+                    # 新版添加人员格式
+                    conn.logger.bind(tag=TAG).info("开始处理添加人员请求(新版格式)")
+                    if "image_path" not in payload or "person_name" not in payload:
+                        conn.logger.bind(tag=TAG).error("添加人员失败：缺少必要参数 person_name 或 image_path")
+                        response = {"type": "face", "action": "add", "status": "error", "message": "缺少参数"}
+                        if request_id:
+                            response["request_id"] = request_id
+                        await conn.websocket.send(json.dumps(response))
+                        return
+                    
+                    person_name = payload["person_name"]
+                    image_path = payload["image_path"]
+                    conn.logger.bind(tag=TAG).info(f"准备添加人员：{person_name}，图片路径：{image_path}")
+                    
+                    # 检查图片文件是否存在
+                    import os
+                    if not os.path.exists(image_path):
+                        conn.logger.bind(tag=TAG).error(f"图片文件不存在：{image_path}")
+                        response = {"type": "face", "action": "add", "status": "error", "message": f"图片文件不存在: {image_path}"}
+                        if request_id:
+                            response["request_id"] = request_id
+                        await conn.websocket.send(json.dumps(response))
+                        return
+                    
+                    # 直接调用现有的add_person函数（传递文件路径和request_id）
+                    try:
+                        await add_person(conn, person_name, image_path, request_id)
+                        conn.logger.bind(tag=TAG).info(f"完成添加人员请求：{person_name}")
+                        
+                    except Exception as e:
+                        conn.logger.bind(tag=TAG).error(f"添加人员失败：{e}")
+                        response = {"type": "face", "action": "add", "status": "error", "message": f"添加人员失败: {str(e)}"}
+                        if request_id:
+                            response["request_id"] = request_id
+                        await conn.websocket.send(json.dumps(response))
+                        return
+                        
+                elif action == "find_face":
+                    # 新版查找人员格式
+                    conn.logger.bind(tag=TAG).info("开始处理查找人员请求(新版格式)")
+                    if "image_path" not in payload:
+                        conn.logger.bind(tag=TAG).error("查找人员失败：缺少图片路径")
+                        response = {"type": "face", "action": "find", "status": "error", "message": "缺少图片路径"}
+                        if request_id:
+                            response["request_id"] = request_id
+                        await conn.websocket.send(json.dumps(response))
+                        return
+                    
+                    image_path = payload["image_path"]
+                    conn.logger.bind(tag=TAG).info(f"准备查找人员，图片路径：{image_path}")
+                    
+                    # 检查图片文件是否存在
+                    import os
+                    if not os.path.exists(image_path):
+                        conn.logger.bind(tag=TAG).error(f"图片文件不存在：{image_path}")
+                        response = {"type": "face", "action": "find", "status": "error", "message": f"图片文件不存在: {image_path}"}
+                        if request_id:
+                            response["request_id"] = request_id
+                        await conn.websocket.send(json.dumps(response))
+                        return
+                    
+                    # 直接调用现有的find_person函数（传递文件路径）
+                    try:
+                        result = await find_person(conn, image_path)
+                        conn.logger.bind(tag=TAG).info("完成查找人员请求")
+                        conn.logger.bind(tag=TAG).debug(f"查找结果：{result}")
+                        
+                    except Exception as e:
+                        conn.logger.bind(tag=TAG).error(f"查找人员失败：{e}")
+                        response = {"type": "face", "action": "find", "status": "error", "message": f"查找人员失败: {str(e)}"}
+                        if request_id:
+                            response["request_id"] = request_id
+                        await conn.websocket.send(json.dumps(response))
+                        return
+                        
+                elif action == "list_people":
+                    # 新版列出所有人员格式
+                    conn.logger.bind(tag=TAG).info("开始处理列出所有人员请求(新版格式)")
+                    names = await list_people(conn)
+                    conn.logger.bind(tag=TAG).info("完成列出所有人员请求")
+                    conn.logger.bind(tag=TAG).debug(f"列出人员数量：{len(names) if names else 0}")
+                    
+                else:
+                    conn.logger.bind(tag=TAG).error(f"未知的人脸操作类型：{action}")
+                    response = {"type": "face", "status": "error", "message": f"未知操作类型：{action}"}
+                    if request_id:
+                        response["request_id"] = request_id
+                    await conn.websocket.send(json.dumps(response))
+                    
+            elif "action" in msg_json:
+                # 兼容旧版直接参数格式
                 action = msg_json["action"]
                 conn.logger.bind(tag=TAG).info(f"人脸操作类型：{action}")
                 
