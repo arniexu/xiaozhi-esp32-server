@@ -10,10 +10,10 @@
     "Home Assistant": {
       "command": "mcp-proxy",
       "args": [
-        "http://YOUR_HA_HOST/mcp_server/sse"
+        "http://homeassistnt.local:8123/mcp_server/sse"
       ],
       "env": {
-        "API_ACCESS_TOKEN": "YOUR_API_ACCESS_TOKEN"
+        "API_ACCESS_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIzODQ4M2ExNDhhMzQ0NGVjYTU3OTIxNGQ2MmNlNmM1OCIsImlhdCI6MTc1NDQ3MTg2MywiZXhwIjoyMDY5ODMxODYzfQ.UGhV6WwJpBMIGproeql2cMNH8GeCez_c8kFRLl4hSfY"
       }
     },
     "filesystem": {
