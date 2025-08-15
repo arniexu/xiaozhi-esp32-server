@@ -215,25 +215,40 @@ start_mcp_endpoint_service() {
         return 1
     fi
     
+
     cd "$MCP_ENDPOINT_DIR"
-    
+
+    # 启动前关闭8004端口相关进程
+    pids=$(sudo lsof -t -i:8004)
+    if [ -n "$pids" ]; then
+        print_info "关闭8004端口相关进程: $pids"
+        sudo kill $pids
+    fi
+
+    # 清理上一次启动的容器和镜像
+    print_info "清理上一次启动的容器和镜像..."
+    docker compose -f docker-compose.yml down || true
+    docker stop mcp-endpoint-server || true
+    docker rm mcp-endpoint-server || true
+    docker rmi ghcr.nju.edu.cn/xinnan-tech/mcp-endpoint-server:latest || true
+
     # 确保 Docker 服务运行
     if ! systemctl is-active --quiet docker; then
         print_info "启动 Docker 服务..."
         systemctl start docker
         sleep 2
     fi
-    
+
     # 启动 mcp-endpoint-server
     print_info "使用 docker-compose 启动 mcp-endpoint-server..."
     docker compose -f docker-compose.yml up -d
-    
+
     if [ $? -eq 0 ]; then
         print_success "mcp-endpoint-server 启动成功"
     else
         print_error "mcp-endpoint-server 启动失败"
     fi
-    
+
     cd - > /dev/null
 }
 
