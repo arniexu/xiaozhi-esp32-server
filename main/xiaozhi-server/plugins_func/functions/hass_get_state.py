@@ -58,7 +58,7 @@ async def handle_hass_get_state(conn, entity_id):
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     response = requests.get(url, headers=headers)
 
-    if response.status_code == 200:
+    if response.status_code != 0:
         resp_json = response.json()
         logger.bind(tag=TAG).info(f"api返回内容: {resp_json}")
         responsetext = "设备状态:" + resp_json["state"] + " "
