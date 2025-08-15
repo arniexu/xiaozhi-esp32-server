@@ -52,49 +52,33 @@ async def handle_hass_get_state(conn, entity_id):
     url = f"{base_url}/api/states/{entity_id}"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        responsetext = "设备状态:" + response.json()["state"] + " "
-        logger.bind(tag=TAG).info(f"api返回内容: {response.json()}")
 
-        if "media_title" in response.json()["attributes"]:
-            responsetext = (
-                responsetext
-                + "正在播放的是:"
-                + str(response.json()["attributes"]["media_title"])
-                + " "
-            )
-        if "volume_level" in response.json()["attributes"]:
-            responsetext = (
-                responsetext
-                + "音量是:"
-                + str(response.json()["attributes"]["volume_level"])
-                + " "
-            )
-        if "color_temp_kelvin" in response.json()["attributes"]:
-            responsetext = (
-                responsetext
-                + "色温是:"
-                + str(response.json()["attributes"]["color_temp_kelvin"])
-                + " "
-            )
-        if "rgb_color" in response.json()["attributes"]:
-            responsetext = (
-                responsetext
-                + "rgb颜色是:"
-                + str(response.json()["attributes"]["rgb_color"])
-                + " "
-            )
-        if "brightness" in response.json()["attributes"]:
-            responsetext = (
-                responsetext
-                + "亮度是:"
-                + str(response.json()["attributes"]["brightness"])
-                + " "
-            )
+    if response.status_code == 200:
+        resp_json = response.json()
+        logger.bind(tag=TAG).info(f"api返回内容: {resp_json}")
+        responsetext = "设备状态:" + resp_json["state"] + " "
+
+        # 温度设备解析
+        if resp_json["attributes"].get("device_class") == "temperature":
+            try:
+                temperature = float(resp_json["state"])
+                unit = resp_json["attributes"].get("unit_of_measurement", "")
+                responsetext = f"温度: {temperature}{unit}"
+            except Exception:
+                responsetext = f"温度解析失败，原始值: {resp_json['state']}"
+
+        if "media_title" in resp_json["attributes"]:
+            responsetext += " 正在播放的是:" + str(resp_json["attributes"]["media_title"])
+        if "volume_level" in resp_json["attributes"]:
+            responsetext += " 音量是:" + str(resp_json["attributes"]["volume_level"])
+        if "color_temp_kelvin" in resp_json["attributes"]:
+            responsetext += " 色温是:" + str(resp_json["attributes"]["color_temp_kelvin"])
+        if "rgb_color" in resp_json["attributes"]:
+            responsetext += " rgb颜色是:" + str(resp_json["attributes"]["rgb_color"])
+        if "brightness" in resp_json["attributes"]:
+            responsetext += " 亮度是:" + str(resp_json["attributes"]["brightness"])
+
         logger.bind(tag=TAG).info(f"查询返回内容: {responsetext}")
         return responsetext
-        # return response.json()['attributes']
-        # response.attributes
-
     else:
         return f"切换失败，错误码: {response.status_code}"
