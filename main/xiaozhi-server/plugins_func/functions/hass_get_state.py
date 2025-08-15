@@ -29,19 +29,24 @@ hass_get_state_function_desc = {
 @register_function("hass_get_state", hass_get_state_function_desc, ToolType.SYSTEM_CTL)
 def hass_get_state(conn, entity_id=""):
     try:
-
         future = asyncio.run_coroutine_threadsafe(
             handle_hass_get_state(conn, entity_id), conn.loop
         )
         # 添加10秒超时
         ha_response = future.result(timeout=10)
+        logger.bind(tag=TAG).info(f"hass_get_state ha_response: {ha_response}")
         return ActionResponse(Action.REQLLM, ha_response, None)
     except asyncio.TimeoutError:
         logger.bind(tag=TAG).error("获取Home Assistant状态超时")
         return ActionResponse(Action.ERROR, "请求超时", None)
     except Exception as e:
-        error_msg = f"执行Home Assistant操作失败"
+        error_msg = f"执行Home Assistant操作失败: {type(e).__name__}: {e}"
         logger.bind(tag=TAG).error(error_msg)
+        # 记录 ha_response 内容（如有）
+        try:
+            logger.bind(tag=TAG).error(f"异常时 ha_response: {ha_response}")
+        except Exception:
+            pass
         return ActionResponse(Action.ERROR, error_msg, None)
 
 
