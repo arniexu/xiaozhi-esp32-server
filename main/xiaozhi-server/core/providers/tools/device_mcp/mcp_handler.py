@@ -283,7 +283,7 @@ async def send_mcp_tools_list_continue_request(conn, cursor: str):
 
 
 async def call_mcp_tool(
-    conn, mcp_client: MCPClient, tool_name: str, args: str = "{}", timeout: int = 30
+    conn, mcp_client: MCPClient, tool_name: str, args: str = "{}", timeout: int = 60
 ):
     """
     调用指定的工具，并等待响应
