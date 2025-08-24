@@ -179,11 +179,23 @@ async def handleTextMessage(conn, message):
                         await conn.websocket.send(json.dumps(response))
                         return
                     
-                    # 直接调用现有的add_person函数（传递文件路径和request_id）
+                    # 直接调用现有的add_person函数（传递文件路径和request_id），只在此处发送 response
                     try:
-                        await add_person(conn, person_name, image_path, request_id)
+                        result = await add_person(conn, person_name, image_path, request_id)
                         conn.logger.bind(tag=TAG).info(f"完成添加人员请求：{person_name}")
-                        
+                        # 统一在此处发送 response
+                        response = {"type": "face", "action": "add"}
+                        if request_id:
+                            response["request_id"] = request_id
+                        if result and result.get("success", False):
+                            response["status"] = "success"
+                            response["message"] = result.get("message", "添加人员成功")
+                            response["data"] = result.get("data", {})
+                        else:
+                            response["status"] = "error"
+                            response["message"] = result.get("message", "添加人员失败")
+                        await conn.websocket.send(json.dumps(response))
+                        return
                     except Exception as e:
                         conn.logger.bind(tag=TAG).error(f"添加人员失败：{e}")
                         response = {"type": "face", "action": "add", "status": "error", "message": f"添加人员失败: {str(e)}"}
@@ -216,12 +228,23 @@ async def handleTextMessage(conn, message):
                         await conn.websocket.send(json.dumps(response))
                         return
                     
-                    # 直接调用现有的find_person函数（传递文件路径）
+                    # 直接调用现有的find_person函数（传递文件路径），只在此处发送 response
                     try:
                         result = await find_person(conn, image_path)
                         conn.logger.bind(tag=TAG).info("完成查找人员请求")
                         conn.logger.bind(tag=TAG).debug(f"查找结果：{result}")
-                        
+                        response = {"type": "face", "action": "find"}
+                        if request_id:
+                            response["request_id"] = request_id
+                        if result and result.get("success", False):
+                            response["status"] = "success"
+                            response["message"] = result.get("message", "查找人员成功")
+                            response["data"] = result.get("data", {})
+                        else:
+                            response["status"] = "error"
+                            response["message"] = result.get("message", "查找人员失败")
+                        await conn.websocket.send(json.dumps(response))
+                        return
                     except Exception as e:
                         conn.logger.bind(tag=TAG).error(f"查找人员失败：{e}")
                         response = {"type": "face", "action": "find", "status": "error", "message": f"查找人员失败: {str(e)}"}
@@ -263,8 +286,18 @@ async def handleTextMessage(conn, message):
                     conn.logger.bind(tag=TAG).info(f"准备添加人员：{name}，图片数据长度：{len(image) if image else 0}")
                     conn.logger.bind(tag=TAG).debug(f"开始调用add_person函数")
                     # 添加生人
-                    await add_person(conn, name, image)
-                    conn.logger.bind(tag=TAG).info(f"完成添加人员请求：{name}")
+                        result = await add_person(conn, name, image)
+                        conn.logger.bind(tag=TAG).info(f"完成添加人员请求：{name}")
+                        # 统一发送 response
+                        response = {"type": "face", "action": "add"}
+                        if result and result.get("success", False):
+                            response["status"] = "success"
+                            response["message"] = result.get("message", "添加人员成功")
+                            response["data"] = result.get("data", {})
+                        else:
+                            response["status"] = "error"
+                            response["message"] = result.get("message", "添加人员失败")
+                        await conn.websocket.send(json.dumps(response))
                     
                 elif action == "find":
                     # 参数是image返回是name
@@ -278,9 +311,19 @@ async def handleTextMessage(conn, message):
                         return
                     conn.logger.bind(tag=TAG).info(f"准备查找人员，图片数据长度：{len(image)}")
                     conn.logger.bind(tag=TAG).debug(f"开始调用find_person函数")
-                    result = await find_person(conn, image)
-                    conn.logger.bind(tag=TAG).info("完成查找人员请求")
-                    conn.logger.bind(tag=TAG).debug(f"查找结果：{result}")
+                        result = await find_person(conn, image)
+                        conn.logger.bind(tag=TAG).info("完成查找人员请求")
+                        conn.logger.bind(tag=TAG).debug(f"查找结果：{result}")
+                        # 统一发送 response
+                        response = {"type": "face", "action": "find"}
+                        if result and result.get("success", False):
+                            response["status"] = "success"
+                            response["message"] = result.get("message", "查找人员成功")
+                            response["data"] = result.get("data", {})
+                        else:
+                            response["status"] = "error"
+                            response["message"] = result.get("message", "查找人员失败")
+                        await conn.websocket.send(json.dumps(response))
                     
                 elif action == "list":
                     # 没有参数
