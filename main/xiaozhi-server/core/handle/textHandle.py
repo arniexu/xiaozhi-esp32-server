@@ -259,13 +259,19 @@ async def handleTextMessage(conn, message):
                     names = await list_people(conn)
                     conn.logger.bind(tag=TAG).info("完成列出所有人员请求")
                     conn.logger.bind(tag=TAG).debug(f"列出人员数量：{len(names) if names else 0}")
-                    
+                    # 回复人员列表
+                    response = {"type": "face", "action": "list", "status": "success", "people": names if names else []}
+                    if request_id:
+                        response["request_id"] = request_id
+                    await conn.websocket.send(json.dumps(response))
+                    return
                 else:
                     conn.logger.bind(tag=TAG).error(f"未知的人脸操作类型：{action}")
                     response = {"type": "face", "status": "error", "message": f"未知操作类型：{action}"}
                     if request_id:
                         response["request_id"] = request_id
                     await conn.websocket.send(json.dumps(response))
+                    return
                     
             elif "action" in msg_json:
                 # 兼容旧版直接参数格式
@@ -286,6 +292,7 @@ async def handleTextMessage(conn, message):
                     conn.logger.bind(tag=TAG).info(f"准备添加人员：{name}，图片数据长度：{len(image) if image else 0}")
                     conn.logger.bind(tag=TAG).debug(f"开始调用add_person函数")
                     # 添加生人
+                    try:
                         result = await add_person(conn, name, image)
                         conn.logger.bind(tag=TAG).info(f"完成添加人员请求：{name}")
                         # 统一发送 response
@@ -298,6 +305,12 @@ async def handleTextMessage(conn, message):
                             response["status"] = "error"
                             response["message"] = result.get("message", "添加人员失败")
                         await conn.websocket.send(json.dumps(response))
+                    except Exception as e:
+                        conn.logger.bind(tag=TAG).error(f"添加人员失败：{e}")
+                        await conn.websocket.send(
+                            json.dumps({"type": "face", "action": "add", "status": "error", "message": f"添加人员失败: {str(e)}"})
+                        )
+                    return
                     
                 elif action == "find":
                     # 参数是image返回是name
@@ -311,6 +324,7 @@ async def handleTextMessage(conn, message):
                         return
                     conn.logger.bind(tag=TAG).info(f"准备查找人员，图片数据长度：{len(image)}")
                     conn.logger.bind(tag=TAG).debug(f"开始调用find_person函数")
+                    try:
                         result = await find_person(conn, image)
                         conn.logger.bind(tag=TAG).info("完成查找人员请求")
                         conn.logger.bind(tag=TAG).debug(f"查找结果：{result}")
@@ -324,6 +338,12 @@ async def handleTextMessage(conn, message):
                             response["status"] = "error"
                             response["message"] = result.get("message", "查找人员失败")
                         await conn.websocket.send(json.dumps(response))
+                    except Exception as e:
+                        conn.logger.bind(tag=TAG).error(f"查找人员失败：{e}")
+                        await conn.websocket.send(
+                            json.dumps({"type": "face", "action": "find", "status": "error", "message": f"查找人员失败: {str(e)}"})
+                        )
+                    return
                     
                 elif action == "list":
                     # 没有参数
@@ -332,17 +352,22 @@ async def handleTextMessage(conn, message):
                     names = await list_people(conn)
                     conn.logger.bind(tag=TAG).info("完成列出所有人员请求")
                     conn.logger.bind(tag=TAG).debug(f"列出人员数量：{len(names) if names else 0}")
-                    
+                    # 回复人员列表
+                    response = {"type": "face", "action": "list", "status": "success", "people": names if names else []}
+                    await conn.websocket.send(json.dumps(response))
+                    return
                 else:
                     conn.logger.bind(tag=TAG).error(f"未知的人脸操作类型：{action}")
                     await conn.websocket.send(
                         json.dumps({"type": "face", "status": "error", "message": f"未知操作类型：{action}"})
                     )
+                    return
             else:
                 conn.logger.bind(tag=TAG).error("人脸消息缺少 action 参数")
                 await conn.websocket.send(
                     json.dumps({"type": "face", "status": "error", "message": "缺少操作类型参数"})
                 )
+                return
             conn.logger.bind(tag=TAG).debug(f"人脸消息处理完成")
         elif msg_json["type"] == "server":
             # 记录日志时过滤敏感信息
