@@ -273,13 +273,14 @@ def _save_face_data(data):
         ConsoleClient.log(f'保存本地人脸数据失败: {str(e)}')
 
 # 重构函数加上返回值
+# request_id不能为空，必须是request的request_id
 async def add_person(conn, name: str, image_path: str, request_id: str = None):
     """
     添加人员
     @param conn: 连接对象
     @param name: 人员姓名
     @param image_path: 图片文件路径
-    @param request_id: 请求ID（可选）
+    @param request_id: 请求ID（必选）
     """
     ConsoleClient.log(f'开始添加人员: {name}')
     try:
@@ -316,7 +317,13 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
         response = Sample.add_face_entity(client, FACE_DB_NAME, entity_id)
         if not response.get("success", False):
             ConsoleClient.log(f'❌ 创建人脸样本失败: {response.get("message", "未知错误")}')
-            return {"success": False, "message": response.get("message", "创建人脸样本失败"), "data": {}}
+            return {"success": False, "message": response.get("message", "创建人脸样本失败"), "data": {
+                "request_id": request_id if request_id else "",
+                "payload": {
+                    "Code": "ERROR",
+                    "Message": response.get("message", "创建人脸样本失败")
+                }
+            }}
 
         try:
             # 上传图片到OSS (使用英文文件名避免编码问题)
@@ -333,7 +340,13 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
             if not oss_url:
                 error_msg = f"上传图片到OSS失败: {filename}"
                 ConsoleClient.log(f'❌ {error_msg}')
-                return {"success": False, "message": error_msg, "data": {}}
+                return {"success": False, "message": error_msg, "data": {
+                    "request_id": request_id if request_id else "",
+                    "payload": {
+                        "Code": "ERROR",
+                        "Message": error_msg
+                    }
+                }}
 
             # 使用OSS URL调用阿里云人脸添加API
             ConsoleClient.log(f'🔄 使用OSS URL调用阿里云API添加人脸: {oss_url}')
@@ -342,8 +355,14 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
             response = Sample.add_face(client, FACE_DB_NAME, entity_id, oss_url)
             if not response.get("success", False):
                 ConsoleClient.log(f'❌ 创建人脸样本失败: {response.get("message", "未知错误")}')
-                return {"success": False, "message": response.get("message", "创建人脸样本失败"), "data": {}}
-            
+                return {"success": False, "message": response.get("message", "创建人脸样本失败"), "data": {
+                    "request_id": request_id if request_id else "",
+                    "payload": {
+                        "Code": "ERROR",
+                        "Message": response.get("message", "创建人脸样本失败")
+                    }
+                }}
+
             # 保存人员信息到本地数据库
             ConsoleClient.log('读取现有人脸数据')
             face_data = _get_face_data()
@@ -359,13 +378,20 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
             _save_face_data(face_data)
             
             ConsoleClient.log(f'✅ 成功添加人员 {name} 到阿里云人脸数据库')
-            return {"success": True, "message": f"成功添加人员: {name}", "data": {
-                "name": name,
-                "entity_id": entity_id,
-                "oss_url": oss_url,
-                "original_image_path": image_path,
-                "method": "alibaba_cloud_with_oss"
-            }}
+            return {
+                "success": True,
+                "message": f"成功添加人员: {name}",
+                "data": {
+                    "request_id": request_id if request_id else "",
+                    "payload": {
+                        "name": name,
+                        "entity_id": entity_id,
+                        "oss_url": oss_url,
+                        "original_image_path": image_path,
+                        "method": "alibaba_cloud_with_oss"
+                    }
+                }
+            }
         except Exception as e:
             ConsoleClient.log(f'❌ 添加人员失败: {str(e)}')
             # 如果失败，仍然保存到本地数据库以便测试
@@ -378,14 +404,26 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
                 "error": str(e)
             }
             _save_face_data(face_data)
-            return {"success": False, "message": f"添加人员失败: {str(e)}", "data": {}}
-                
+            return {"success": False, "message": f"添加人员失败: {str(e)}", "data": {
+                "request_id": request_id if request_id else "",
+                "payload": {
+                    "Code": "ERROR",
+                    "Message": f"添加人员失败: {str(e)}"
+                }
+            }}
+
     except Exception as e:
         ConsoleClient.log(f'添加人员失败: {str(e)}')
-        return {"success": False, "message": f"添加人员失败: {str(e)}", "data": {}}
+        return {"success": False, "message": f"添加人员失败: {str(e)}", "data": {
+            "request_id": request_id if request_id else "",
+            "payload": {
+                "Code": "ERROR",
+                "Message": f"添加人员失败: {str(e)}"
+            }
+        }}
 
-
-async def find_person(conn, image_path: str):
+# request_id不能为空，必须是request的request_id
+async def find_person(conn, image_path: str, request_id: str = None):
     """
     查找人员
     @param conn: 连接对象
@@ -397,14 +435,19 @@ async def find_person(conn, image_path: str):
         if not os.path.exists(image_path):
             error_msg = f"图片文件不存在: {image_path}"
             ConsoleClient.log(f'❌ {error_msg}')
-            await conn.websocket.send(
-                json.dumps({
-                    "type": "face", 
+            # 将response return给上层，由上层统一回复
+            # 不在此函数内回复websocket
+            # 并且response必须包含request_id
+            # status 在最顶层，有两个值"success" "failed"
+            return {
+                "request_id": request_id if request_id else "",
+                "payload": {
+                    "type": "face",
                     "action": "find",
-                    "status": "error", 
+                    "status": "error",
                     "message": error_msg
-                })
-            )
+                }
+            }
             return
         
         # 读取图片文件并转换为base64
@@ -416,15 +459,19 @@ async def find_person(conn, image_path: str):
         except Exception as e:
             error_msg = f"读取图片文件失败: {str(e)}"
             ConsoleClient.log(f'❌ {error_msg}')
-            await conn.websocket.send(
-                json.dumps({
-                    "type": "face", 
+            # 将response return给上层，由上层统一回复
+            # 不在此函数内回复websocket
+            # 并且response必须包含request_id
+            # status 在最顶层，有两个值"success" "failed"
+            return {
+                "request_id": request_id if request_id else "",
+                "payload": {
+                    "type": "face",
                     "action": "find",
                     "status": "error", 
                     "message": error_msg
-                })
-            )
-            return
+                }
+            }
         # 创建Facebody客户端
         ConsoleClient.log(f'创建Facebody客户端，区域: {FACEBODY_REGION}')
         client = Sample.create_client(FACEBODY_REGION)
@@ -480,12 +527,16 @@ async def find_person(conn, image_path: str):
                     person_name = person_info.get('name', '未知')
                     
                     ConsoleClient.log(f'✅ 阿里云搜索成功，找到: {person_name} (entity_id: {entity_id}, 置信度: {confidence})')
-                    
-                    await conn.websocket.send(
-                        json.dumps({
-                            "type": "face", 
+                    # 将response return给上层，由上层统一回复
+                    # 不在此函数内回复websocket
+                    # 并且response必须包含request_id
+                    # status 在最顶层，有两个值"success" "failed"
+                    return {
+                        "request_id": request_id if request_id else "",
+                        "payload": {
+                            "type": "face",
                             "action": "find",
-                            "status": "success", 
+                            "status": "success",
                             "message": "找到匹配的人员",
                             "data": {
                                 "name": person_name,
@@ -493,22 +544,26 @@ async def find_person(conn, image_path: str):
                                 "confidence": confidence,
                                 "search_method": "alibaba_cloud_with_oss"
                             }
-                        })
-                    )
+                        }
+                    }
                 else:
                     ConsoleClient.log('❌ 阿里云搜索失败：未找到匹配的人员')
-                    
-                    await conn.websocket.send(
-                        json.dumps({
-                            "type": "face", 
+                    # 将response return给上层，由上层统一回复
+                    # 不在此函数内回复websocket
+                    # 并且response必须包含request_id
+                    # status 在最顶层，有两个值"success" "failed"
+                    return {
+                        "request_id": request_id if request_id else "",
+                        "payload": {
+                            "type": "face",
                             "action": "find",
                             "status": "error", 
                             "message": "未找到匹配的人员",
                             "data": {
                                 "search_method": "alibaba_cloud_with_oss"
                             }
-                        })
-                    )
+                        }
+                    }
             else:
                 raise Exception(f"阿里云API返回错误: {response.body.message}")
                 
@@ -526,14 +581,19 @@ async def find_person(conn, image_path: str):
                 
     except Exception as e:
         ConsoleClient.log(f'查找人员失败: {str(e)}')
-        await conn.websocket.send(
-            json.dumps({
-                "type": "face", 
+        # 将response return给上层，由上层统一回复
+        # 不在此函数内回复websocket
+        # 并且response必须包含request_id
+        # status 在最顶层，有两个值"success" "failed"
+        return {
+            "request_id": request_id if request_id else "",
+            "payload": {
+                "type": "face",
                 "action": "find",
                 "status": "error", 
                 "message": f"查找人员失败: {str(e)}"
-            })
-        )
+            }
+        }
 
 
 async def list_people(conn):

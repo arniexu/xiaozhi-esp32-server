@@ -164,7 +164,7 @@ async def handleTextMessage(conn, message):
                             response["request_id"] = request_id
                         await conn.websocket.send(json.dumps(response))
                         return
-                    
+                    request_id = payload["request_id"]
                     person_name = payload["person_name"]
                     image_path = payload["image_path"]
                     conn.logger.bind(tag=TAG).info(f"准备添加人员：{person_name}，图片路径：{image_path}")
@@ -214,7 +214,7 @@ async def handleTextMessage(conn, message):
                             response["request_id"] = request_id
                         await conn.websocket.send(json.dumps(response))
                         return
-                    
+                    request_id = payload["request_id"]
                     image_path = payload["image_path"]
                     conn.logger.bind(tag=TAG).info(f"准备查找人员，图片路径：{image_path}")
                     
@@ -230,7 +230,7 @@ async def handleTextMessage(conn, message):
                     
                     # 直接调用现有的find_person函数（传递文件路径），只在此处发送 response
                     try:
-                        result = await find_person(conn, image_path)
+                        result = await find_person(conn, image_path, request_id)
                         conn.logger.bind(tag=TAG).info("完成查找人员请求")
                         conn.logger.bind(tag=TAG).debug(f"查找结果：{result}")
                         response = {"type": "face", "action": "find"}
@@ -316,6 +316,7 @@ async def handleTextMessage(conn, message):
                     # 参数是image返回是name
                     conn.logger.bind(tag=TAG).info("开始处理查找人员请求")
                     image = msg_json.get("image", "")
+                    request_id = msg_json.get("request_id", None)
                     if not image:
                         conn.logger.bind(tag=TAG).error("查找人员失败：缺少图片数据")
                         await conn.websocket.send(
@@ -325,7 +326,7 @@ async def handleTextMessage(conn, message):
                     conn.logger.bind(tag=TAG).info(f"准备查找人员，图片数据长度：{len(image)}")
                     conn.logger.bind(tag=TAG).debug(f"开始调用find_person函数")
                     try:
-                        result = await find_person(conn, image)
+                        result = await find_person(conn, image, request_id)
                         conn.logger.bind(tag=TAG).info("完成查找人员请求")
                         conn.logger.bind(tag=TAG).debug(f"查找结果：{result}")
                         # 统一发送 response
