@@ -240,6 +240,7 @@ class Sample:
             request_body.db_name = db_name
             request_body.image_url = image_url
             request_body.limit = limit
+            # 添加返回值判断
             response = client.search_face(request_body)
             ConsoleClient.log('--------------------人脸搜索完成--------------------')
             return response
@@ -271,7 +272,7 @@ def _save_face_data(data):
     except Exception as e:
         ConsoleClient.log(f'保存本地人脸数据失败: {str(e)}')
 
-
+# 重构函数加上返回值
 async def add_person(conn, name: str, image_path: str, request_id: str = None):
     """
     添加人员
@@ -286,15 +287,7 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
         if not os.path.exists(image_path):
             error_msg = f"图片文件不存在: {image_path}"
             ConsoleClient.log(f'❌ {error_msg}')
-            await conn.websocket.send(
-                json.dumps({
-                    "type": "face", 
-                    "action": "add",
-                    "status": "error", 
-                    "message": error_msg
-                })
-            )
-            return
+            return {"success": False, "message": error_msg, "data": {}}
         
         # 读取图片文件并转换为base64
         try:
@@ -305,15 +298,7 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
         except Exception as e:
             error_msg = f"读取图片文件失败: {str(e)}"
             ConsoleClient.log(f'❌ {error_msg}')
-            await conn.websocket.send(
-                json.dumps({
-                    "type": "face", 
-                    "action": "add",
-                    "status": "error", 
-                    "message": error_msg
-                })
-            )
-            return
+            return {"success": False, "message": error_msg, "data": {}}
         # 创建Facebody客户端
         ConsoleClient.log(f'创建Facebody客户端，区域: {FACEBODY_REGION}')
         client = Sample.create_client(FACEBODY_REGION)
@@ -331,15 +316,7 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
         response = Sample.add_face_entity(client, FACE_DB_NAME, entity_id)
         if not response.get("success", False):
             ConsoleClient.log(f'❌ 创建人脸样本失败: {response.get("message", "未知错误")}')
-            await conn.websocket.send(
-                json.dumps({
-                    "type": "face",
-                    "action": "add",
-                    "status": "error",
-                    "message": response.get("message", "创建人脸样本失败"),
-                })
-            )
-            return
+            return {"success": False, "message": response.get("message", "创建人脸样本失败"), "data": {}}
 
         try:
             # 上传图片到OSS (使用英文文件名避免编码问题)
@@ -356,15 +333,7 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
             if not oss_url:
                 error_msg = f"上传图片到OSS失败: {filename}"
                 ConsoleClient.log(f'❌ {error_msg}')
-                await conn.websocket.send(
-                    json.dumps({
-                        "type": "face",
-                        "action": "add",
-                        "status": "error",
-                        "message": error_msg
-                    })
-                )
-                return
+                return {"success": False, "message": error_msg, "data": {}}
 
             # 使用OSS URL调用阿里云人脸添加API
             ConsoleClient.log(f'🔄 使用OSS URL调用阿里云API添加人脸: {oss_url}')
@@ -373,15 +342,7 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
             response = Sample.add_face(client, FACE_DB_NAME, entity_id, oss_url)
             if not response.get("success", False):
                 ConsoleClient.log(f'❌ 创建人脸样本失败: {response.get("message", "未知错误")}')
-                await conn.websocket.send(
-                    json.dumps({
-                        "type": "face",
-                        "action": "add",
-                        "status": "error",
-                        "message": response.get("message", "创建人脸样本失败"),
-                    })
-                )
-                return
+                return {"success": False, "message": response.get("message", "创建人脸样本失败"), "data": {}}
             
             # 保存人员信息到本地数据库
             ConsoleClient.log('读取现有人脸数据')
@@ -398,22 +359,13 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
             _save_face_data(face_data)
             
             ConsoleClient.log(f'✅ 成功添加人员 {name} 到阿里云人脸数据库')
-            await conn.websocket.send(
-                json.dumps({
-                    "type": "face", 
-                    "action": "add",
-                    "status": "success", 
-                    "message": f"成功添加人员: {name}",
-                    "data": {
-                        "name": name, 
-                        "entity_id": entity_id,
-                        "oss_url": oss_url,
-                        "original_image_path": image_path,
-                        "method": "alibaba_cloud_with_oss"
-                    }
-                })
-            )
-                
+            return {"success": True, "message": f"成功添加人员: {name}", "data": {
+                "name": name,
+                "entity_id": entity_id,
+                "oss_url": oss_url,
+                "original_image_path": image_path,
+                "method": "alibaba_cloud_with_oss"
+            }}
         except Exception as e:
             ConsoleClient.log(f'❌ 添加人员失败: {str(e)}')
             # 如果失败，仍然保存到本地数据库以便测试
@@ -426,18 +378,11 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
                 "error": str(e)
             }
             _save_face_data(face_data)
-            raise e
+            return {"success": False, "message": f"添加人员失败: {str(e)}", "data": {}}
                 
     except Exception as e:
         ConsoleClient.log(f'添加人员失败: {str(e)}')
-        await conn.websocket.send(
-            json.dumps({
-                "type": "face", 
-                "action": "add",
-                "status": "error", 
-                "message": f"添加人员失败: {str(e)}"
-            })
-        )
+        return {"success": False, "message": f"添加人员失败: {str(e)}", "data": {}}
 
 
 async def find_person(conn, image_path: str):
@@ -638,7 +583,6 @@ async def list_people(conn):
             })
         )
 
-
 async def search_face(conn, image_path: str, limit: int = 5, threshold: float = 80.0):
     """
     搜索人脸（高级版本，支持多个结果和置信度阈值）
@@ -646,6 +590,7 @@ async def search_face(conn, image_path: str, limit: int = 5, threshold: float = 
     @param image_path: 图片文件路径
     @param limit: 返回结果数量限制
     @param threshold: 置信度阈值（0-100）
+    @return: dict {success: bool, message: str, data: dict}
     """
     ConsoleClient.log(f'开始搜索人脸，limit: {limit}, threshold: {threshold}')
     try:
@@ -661,8 +606,7 @@ async def search_face(conn, image_path: str, limit: int = 5, threshold: float = 
                     "message": error_msg
                 })
             )
-            return
-        
+            return {"success": False, "message": error_msg, "data": {}}
         # 读取图片文件并转换为base64
         try:
             with open(image_path, 'rb') as f:
@@ -680,74 +624,64 @@ async def search_face(conn, image_path: str, limit: int = 5, threshold: float = 
                     "message": error_msg
                 })
             )
-            return
-        
+            return {"success": False, "message": error_msg, "data": {}}
         # 创建Facebody客户端
         ConsoleClient.log(f'创建Facebody客户端，区域: {FACEBODY_REGION}')
         client = Sample.create_client(FACEBODY_REGION)
-        
         try:
             # 上传搜索图片到OSS
             timestamp = int(time.time())
-            # 从文件路径提取文件扩展名
             original_filename = os.path.basename(image_path)
             file_extension = os.path.splitext(original_filename)[1] or '.jpg'
             search_filename = f"search_{timestamp}_{uuid.uuid4().hex[:8]}{file_extension}"
             ConsoleClient.log(f'🔄 上传搜索图片到OSS: {search_filename} (原文件: {original_filename})')
-            
             search_oss_url = _upload_image_to_oss(image_base64, search_filename)
-            
-            # 使用OSS URL调用阿里云人脸搜索API
+            if not search_oss_url:
+                error_msg = f"上传搜索图片到OSS失败: {search_filename}"
+                ConsoleClient.log(f'❌ {error_msg}')
+                await conn.websocket.send(
+                    json.dumps({
+                        "type": "face",
+                        "action": "search",
+                        "status": "error",
+                        "message": error_msg
+                    })
+                )
+                return {"success": False, "message": error_msg, "data": {}}
             ConsoleClient.log(f'🔍 使用OSS URL调用阿里云人脸搜索API: {search_oss_url}, limit: {limit}')
-            
-            # 调用阿里云人脸搜索API
             response = Sample.search_face(
                 client=client,
                 db_name=FACE_DB_NAME,
                 image_url=search_oss_url,
                 limit=limit
             )
-            
-            if response and response.body and response.body.data:
-                match_list = response.body.data.match_list
-                
+            if response and hasattr(response, 'body') and hasattr(response.body, 'data'):
+                match_list = getattr(response.body.data, 'match_list', None)
+                results = []
                 if match_list and len(match_list) > 0:
-                    # 获取本地人脸数据
                     face_data = _get_face_data()
-                    
-                    # 处理所有匹配结果
-                    results = []
                     for match in match_list:
                         entity_id = None
                         confidence = 0.0
-                        
-                        # 尝试从 face_items 获取匹配信息
                         if hasattr(match, 'face_items') and match.face_items:
-                            face_item = match.face_items[0]  # 获取第一个面部项
+                            face_item = match.face_items[0]
                             entity_id = getattr(face_item, 'entity_id', None)
                             confidence = getattr(face_item, 'score', 0.0)
                         else:
-                            # 尝试其他可能的属性名
                             entity_id = getattr(match, 'entity_id', None) or getattr(match, 'face_id', None) or getattr(match, 'id', None)
                             confidence = getattr(match, 'score', 0.0) or getattr(match, 'qualitie_score', 0.0)
-                        
-                        # 应用置信度阈值过滤
                         if entity_id and confidence >= threshold:
                             person_info = face_data.get(entity_id, {})
                             person_name = person_info.get('name', '未知')
-                            
                             results.append({
                                 "name": person_name,
                                 "entity_id": entity_id,
                                 "confidence": confidence,
                                 "rank": len(results) + 1
                             })
-                            
                             ConsoleClient.log(f'✅ 找到匹配 #{len(results)}: {person_name} (entity_id: {entity_id}, 置信度: {confidence})')
-                    
                     if results:
                         ConsoleClient.log(f'✅ 阿里云搜索成功，找到 {len(results)} 个匹配结果（置信度 >= {threshold}）')
-                        
                         await conn.websocket.send(
                             json.dumps({
                                 "type": "face", 
@@ -763,15 +697,22 @@ async def search_face(conn, image_path: str, limit: int = 5, threshold: float = 
                                 }
                             })
                         )
+                        return {"success": True, "message": f"找到 {len(results)} 个匹配的人员", "data": {
+                            "count": len(results),
+                            "threshold": threshold,
+                            "limit": limit,
+                            "results": results,
+                            "search_method": "alibaba_cloud_with_oss"
+                        }}
                     else:
-                        ConsoleClient.log(f'❌ 阿里云搜索失败：没有找到置信度 >= {threshold} 的匹配结果')
-                        
+                        error_msg = f"未找到置信度 >= {threshold} 的匹配人员"
+                        ConsoleClient.log(f'❌ 阿里云搜索失败：{error_msg}')
                         await conn.websocket.send(
                             json.dumps({
                                 "type": "face", 
                                 "action": "search",
                                 "status": "error", 
-                                "message": f"未找到置信度 >= {threshold} 的匹配人员",
+                                "message": error_msg,
                                 "data": {
                                     "threshold": threshold,
                                     "limit": limit,
@@ -779,15 +720,20 @@ async def search_face(conn, image_path: str, limit: int = 5, threshold: float = 
                                 }
                             })
                         )
+                        return {"success": False, "message": error_msg, "data": {
+                            "threshold": threshold,
+                            "limit": limit,
+                            "search_method": "alibaba_cloud_with_oss"
+                        }}
                 else:
-                    ConsoleClient.log('❌ 阿里云搜索失败：未找到任何匹配的人员')
-                    
+                    error_msg = "未找到匹配的人员"
+                    ConsoleClient.log(f'❌ 阿里云搜索失败：{error_msg}')
                     await conn.websocket.send(
                         json.dumps({
                             "type": "face", 
                             "action": "search",
                             "status": "error", 
-                            "message": "未找到匹配的人员",
+                            "message": error_msg,
                             "data": {
                                 "threshold": threshold,
                                 "limit": limit,
@@ -795,9 +741,23 @@ async def search_face(conn, image_path: str, limit: int = 5, threshold: float = 
                             }
                         })
                     )
+                    return {"success": False, "message": error_msg, "data": {
+                        "threshold": threshold,
+                        "limit": limit,
+                        "search_method": "alibaba_cloud_with_oss"
+                    }}
             else:
-                raise Exception(f"阿里云API返回错误: {response.body.message if response.body else 'Unknown error'}")
-                
+                error_msg = f"阿里云API返回错误: {getattr(getattr(response, 'body', None), 'message', 'Unknown error')}"
+                ConsoleClient.log(f'❌ {error_msg}')
+                await conn.websocket.send(
+                    json.dumps({
+                        "type": "face", 
+                        "action": "search",
+                        "status": "error", 
+                        "message": error_msg
+                    })
+                )
+                return {"success": False, "message": error_msg, "data": {}}
             # 清理搜索图片（可选）
             try:
                 bucket = _get_oss_bucket()
@@ -805,18 +765,17 @@ async def search_face(conn, image_path: str, limit: int = 5, threshold: float = 
                 ConsoleClient.log(f'🗑️  清理搜索图片: {search_filename}')
             except:
                 pass  # 清理失败不影响主要功能
-                
         finally:
-            # 不再需要清理临时文件
             pass
-                
     except Exception as e:
-        ConsoleClient.log(f'搜索人脸失败: {str(e)}')
+        error_msg = f"搜索人脸失败: {str(e)}"
+        ConsoleClient.log(error_msg)
         await conn.websocket.send(
             json.dumps({
                 "type": "face", 
                 "action": "search",
                 "status": "error", 
-                "message": f"搜索人脸失败: {str(e)}"
+                "message": error_msg
             })
         )
+        return {"success": False, "message": error_msg, "data": {}}
