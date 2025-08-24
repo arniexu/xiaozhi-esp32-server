@@ -1,0 +1,49 @@
+{
+    "version": 1,
+    "minor_version": 4,
+    "key": "core.entity_registry",
+    "data": {
+        "entities": [
+            {
+                "area_id": null,
+                "capabilities": null,
+                "config_entry_id": null,
+                "device_class": null,
+                "device_id": null,
+                "disabled_by": null,
+                "entity_category": null,
+                "entity_id": "binary_sensor.updater",
+                "icon": null,
+                "id": "578c797b47289b52201056a69e85adf3",
+                "name": null,
+                "original_device_class": "update",
+                "original_icon": null,
+                "original_name": "Updater",
+                "platform": "updater",
+                "supported_features": 0,
+                "unique_id": "updater",
+                "unit_of_measurement": null
+            },
+            {
+                "area_id": null,
+                "capabilities": null,
+                "config_entry_id": null,
+                "device_class": null,
+                "device_id": null,
+                "disabled_by": null,
+                "entity_category": null,
+                "entity_id": "person.xuqianjin",
+                "icon": null,
+                "id": "20eddf97f2ba90c066986df4c198a73f",
+                "name": null,
+                "original_device_class": null,
+                "original_icon": null,
+                "original_name": "xuqianjin",
+                "platform": "person",
+                "supported_features": 0,
+                "unique_id": "xuqianjin",
+                "unit_of_measurement": null
+            }
+        ]
+    }
+}

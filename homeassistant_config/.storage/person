@@ -1,0 +1,15 @@
+{
+    "version": 2,
+    "minor_version": 1,
+    "key": "person",
+    "data": {
+        "items": [
+            {
+                "name": "xuqianjin",
+                "user_id": "57229ff92c32490a92df5582d14cbc92",
+                "device_trackers": [],
+                "id": "xuqianjin"
+            }
+        ]
+    }
+}

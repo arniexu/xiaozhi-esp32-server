@@ -1,0 +1,27 @@
+{
+    "version": 1,
+    "minor_version": 1,
+    "key": "core.restore_state",
+    "data": [
+        {
+            "state": {
+                "entity_id": "person.xuqianjin",
+                "state": "unknown",
+                "attributes": {
+                    "editable": false,
+                    "id": "xuqianjin",
+                    "user_id": "57229ff92c32490a92df5582d14cbc92",
+                    "friendly_name": "xuqianjin"
+                },
+                "last_changed": "2025-08-11T08:11:04.149205+00:00",
+                "last_updated": "2025-08-11T08:11:04.884745+00:00",
+                "context": {
+                    "id": "18e00c114dd8d152b87d27fb546626e0",
+                    "parent_id": null,
+                    "user_id": null
+                }
+            },
+            "last_seen": "2025-08-11T09:53:55.545184+00:00"
+        }
+    ]
+}
