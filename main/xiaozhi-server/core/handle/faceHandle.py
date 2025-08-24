@@ -68,7 +68,7 @@ def _get_oss_bucket():
     
     return _oss_bucket
 
-
+#
 def _upload_image_to_oss(image_base64: str, filename: str) -> str:
     """
     上传图片到OSS
@@ -146,54 +146,79 @@ class Sample:
             ConsoleClient.log('create facebody db error')
             ConsoleClient.log(err.message)
 
+    # 重构函数，添加返回值，在异常和http response code不是200的时候都要返回错误信息
     @staticmethod
     def add_face_entity(
         client: FacebodyClient,
         db_name: str,
         entity_id: str,
-    ) -> None:
+    ) -> dict:
         """
         添加实体
         @param db_name: 数据库名称
         @param entity_id: 实体ID
-        @return: void
-        @throws Exception
+        @return: dict {success: bool, message: str, response: object}
         """
         try:
             request_body = facebody_models.AddFaceEntityRequest()
             request_body.db_name = db_name
             request_body.entity_id = entity_id
-            client.add_face_entity(request_body)
+            response = client.add_face_entity(request_body)
+            # 检查 response 是否有 status_code 或 body.code
+            status_code = getattr(response, 'status_code', None)
+            body_code = getattr(getattr(response, 'body', None), 'code', None)
+            if status_code is not None and status_code != 200:
+                msg = f'HTTP状态码错误: {status_code}'
+                ConsoleClient.log(msg)
+                return {"success": False, "message": msg, "response": response}
+            if body_code is not None and body_code != "200":
+                msg = f'API返回码错误: {body_code}'
+                ConsoleClient.log(msg)
+                return {"success": False, "message": msg, "response": response}
             ConsoleClient.log('--------------------创建人脸样本成功--------------------')
+            return {"success": True, "message": "创建人脸样本成功", "response": response}
         except Exception as err:
-            ConsoleClient.log('add face entity error.')
-            ConsoleClient.log(err.message)
+            error_msg = f'add face entity error: {getattr(err, "message", str(err))}'
+            ConsoleClient.log(error_msg)
+            return {"success": False, "message": error_msg, "response": None}
 
+    # 添加返回值判断并且添加对add_face_entity的错误处理
     @staticmethod
     def add_face(
         client: FacebodyClient,
         db_name: str,
         entity_id: str,
         image_url: str,
-    ) -> None:
+    ) -> dict:
         """
         添加人脸数据
         @param db_name: 数据库名称
         @param entity_id: 实体ID
         @param image_url: 人脸图片地址，必须是同Region的OSS的图片地址。人脸必须是正面无遮挡单人人脸。
-        @return: void
-        @throws Exception
+        @return: dict {success: bool, message: str, response: object}
         """
         try:
             request_body = facebody_models.AddFaceRequest()
             request_body.db_name = db_name
             request_body.entity_id = entity_id
             request_body.image_url = image_url
-            client.add_face(request_body)
+            response = client.add_face(request_body)
+            status_code = getattr(response, 'status_code', None)
+            body_code = getattr(getattr(response, 'body', None), 'code', None)
+            if status_code is not None and status_code != 200:
+                msg = f'HTTP状态码错误: {status_code}'
+                ConsoleClient.log(msg)
+                return {"success": False, "message": msg, "response": response}
+            if body_code is not None and body_code != "200":
+                msg = f'API返回码错误: {body_code}'
+                ConsoleClient.log(msg)
+                return {"success": False, "message": msg, "response": response}
             ConsoleClient.log('--------------------创建人脸数据成功--------------------')
+            return {"success": True, "message": "创建人脸数据成功", "response": response}
         except Exception as err:
-            ConsoleClient.log('add face error.')
-            ConsoleClient.log(err.message)
+            error_msg = f'add face error: {getattr(err, "message", str(err))}'
+            ConsoleClient.log(error_msg)
+            return {"success": False, "message": error_msg, "response": None}
 
     @staticmethod
     def search_face(
@@ -301,10 +326,21 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
         ConsoleClient.log(f'确保人脸数据库存在: {FACE_DB_NAME}')
         Sample.create_face_db(client, FACE_DB_NAME)
         
-        # 创建人脸样本
+        # 创建人脸样本，添加返回值判断
         ConsoleClient.log(f'创建人脸样本，entity_id: {entity_id}')
-        Sample.add_face_entity(client, FACE_DB_NAME, entity_id)
-        
+        response = Sample.add_face_entity(client, FACE_DB_NAME, entity_id)
+        if not response.get("success", False):
+            ConsoleClient.log(f'❌ 创建人脸样本失败: {response.get("message", "未知错误")}')
+            await conn.websocket.send(
+                json.dumps({
+                    "type": "face",
+                    "action": "add",
+                    "status": "error",
+                    "message": response.get("message", "创建人脸样本失败"),
+                })
+            )
+            return
+
         try:
             # 上传图片到OSS (使用英文文件名避免编码问题)
             timestamp = int(time.time())
@@ -315,13 +351,37 @@ async def add_person(conn, name: str, image_path: str, request_id: str = None):
             filename = f"person_{timestamp}_{entity_id}{file_extension}"
             ConsoleClient.log(f'🔄 上传图片到OSS: {filename} (原文件: {original_filename})')
             
+            # 添加返回值判断
             oss_url = _upload_image_to_oss(image_base64, filename)
-            
+            if not oss_url:
+                error_msg = f"上传图片到OSS失败: {filename}"
+                ConsoleClient.log(f'❌ {error_msg}')
+                await conn.websocket.send(
+                    json.dumps({
+                        "type": "face",
+                        "action": "add",
+                        "status": "error",
+                        "message": error_msg
+                    })
+                )
+                return
+
             # 使用OSS URL调用阿里云人脸添加API
             ConsoleClient.log(f'🔄 使用OSS URL调用阿里云API添加人脸: {oss_url}')
             
             # 调用阿里云人脸添加API
-            Sample.add_face(client, FACE_DB_NAME, entity_id, oss_url)
+            response = Sample.add_face(client, FACE_DB_NAME, entity_id, oss_url)
+            if not response.get("success", False):
+                ConsoleClient.log(f'❌ 创建人脸样本失败: {response.get("message", "未知错误")}')
+                await conn.websocket.send(
+                    json.dumps({
+                        "type": "face",
+                        "action": "add",
+                        "status": "error",
+                        "message": response.get("message", "创建人脸样本失败"),
+                    })
+                )
+                return
             
             # 保存人员信息到本地数据库
             ConsoleClient.log('读取现有人脸数据')
