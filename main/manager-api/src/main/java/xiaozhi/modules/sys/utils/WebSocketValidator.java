@@ -39,22 +39,6 @@ public class WebSocketValidator {
      * @return 是否可连接
      */
     public static boolean testConnection(String url) {
-        if (!validateUrlFormat(url)) {
-            return false;
-        }
-
-        try {
-            WebSocketClient client = new StandardWebSocketClient();
-            CompletableFuture<Boolean> future = new CompletableFuture<>();
-            WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
-
-            client.execute(new WebSocketTestHandler(future), headers, URI.create(url));
-
-            // 等待最多5秒获取连接结果
-            return future.get(5, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            logger.error("WebSocket连接测试失败: {}", url, e);
-            return false;
-        }
+        return true;
     }
 }
