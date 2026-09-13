@@ -4,17 +4,20 @@ from config.logger import setup_logging
 from core.api.ota_handler import OTAHandler
 from core.api.vision_handler import VisionHandler
 from core.api.image_handler import ImageUploadHandler
+from core.api.agent_approval_handler import AgentApprovalHandler
 
 TAG = __name__
 
 
 class SimpleHttpServer:
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, ws_server=None):
         self.config = config
         self.logger = setup_logging()
         self.ota_handler = OTAHandler(config)
         self.vision_handler = VisionHandler(config)
         self.image_upload_handler = ImageUploadHandler(config)
+        # 授权端点需要 WebSocketServer.active_connections 找到在线设备
+        self.agent_approval_handler = AgentApprovalHandler(config, ws_server)
 
     def _get_websocket_url(self, local_ip: str, port: int) -> str:
         """获取websocket地址"""
@@ -72,6 +75,14 @@ class SimpleHttpServer:
                     web.post("/api/upload/image", self.image_upload_handler.handle_post),
                     web.get("/api/upload/image", self.image_upload_handler.handle_get),
                     web.options("/api/upload/image", self.image_upload_handler.handle_options),
+                ])
+
+                # 设备授权中继路由（authentication/xiaozhi-relay v2）
+                routes.extend([
+                    web.post("/api/agent/approval", self.agent_approval_handler.handle_post),
+                    web.post("/api/agent/approval/cancel", self.agent_approval_handler.handle_cancel),
+                    web.options("/api/agent/approval", self.agent_approval_handler.handle_options),
+                    web.options("/api/agent/approval/cancel", self.agent_approval_handler.handle_options),
                 ])
 
                 if not read_config_from_api:

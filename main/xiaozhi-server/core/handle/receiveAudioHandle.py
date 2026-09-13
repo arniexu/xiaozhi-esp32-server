@@ -1,10 +1,12 @@
 from core.handle.sendAudioHandle import send_stt_message
-from core.handle.intentHandler import handle_user_intent
+from core.handle.intentHandler import handle_user_intent, speak_txt
+from core.agent_approval import approval_manager, match_decision
 from core.utils.output_counter import check_device_output_limit
 from core.handle.abortHandle import handleAbortMessage
 import time
 import asyncio
 import json
+import uuid
 from core.handle.sendAudioHandle import SentenceType
 from core.utils.util import audio_to_data
 
@@ -77,6 +79,28 @@ async def startToChat(conn, text):
             return
     if conn.client_is_speaking:
         await handleAbortMessage(conn)
+
+    # 授权审批拦截：当前设备有待决授权卡时，语音“批准/拒绝”只做提示；
+    # 最终决定由设备端 MCP 工具结果带回，服务器不在这里 resolve。
+    pending = approval_manager.find(conn)
+    if pending:
+        matched = match_decision(actual_text)
+        if matched:
+            # 必须把原文回给设备：设备端靠这条 stt 自行解析决定并回 MCP 结果
+            await send_stt_message(conn, actual_text)
+            try:
+                if not conn.sentence_id:
+                    conn.sentence_id = str(uuid.uuid4().hex)
+                if matched == "allow" and pending.get("danger") == "high":
+                    # 高危操作语音“批准”不算数，只提示按键
+                    speak_txt(conn, "高危操作需要在设备上按键确认")
+                elif matched == "allow":
+                    speak_txt(conn, "好的，已批准")
+                else:
+                    speak_txt(conn, "好的，已拒绝")
+            except Exception as e:
+                conn.logger.bind(tag=TAG).warning(f"授权审批语音提示失败: {e}")
+            return True
 
     # 首先进行意图分析，使用实际文本内容
     intent_handled = await handle_user_intent(conn, actual_text)

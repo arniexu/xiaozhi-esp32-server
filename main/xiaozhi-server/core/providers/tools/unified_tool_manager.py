@@ -5,6 +5,10 @@ from config.logger import setup_logging
 from plugins_func.register import Action, ActionResponse
 from .base import ToolType, ToolDefinition, ToolExecutor
 
+# 仅供服务器内部调用的设备端工具，不能让 LLM 看见/调用。
+# 设备注册 auth.approval -> sanitize_tool_name 后为 auth_approval。
+INTERNAL_TOOL_NAMES = frozenset({"auth_approval"})
+
 
 class ToolManager:
     """统一工具管理器，管理所有类型的工具"""
@@ -37,6 +41,9 @@ class ToolManager:
             try:
                 tools = executor.get_tools()
                 for name, definition in tools.items():
+                    if name in INTERNAL_TOOL_NAMES:
+                        # 授权工具只走 HTTP 端点直连设备 MCP，LLM 不可见
+                        continue
                     if name in all_tools:
                         self.logger.warning(f"工具名称冲突: {name}")
                     all_tools[name] = definition
