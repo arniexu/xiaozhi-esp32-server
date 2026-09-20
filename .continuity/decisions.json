@@ -853,5 +853,59 @@
       "source": "cli",
       "timestamp": "2026-09-20T19:49:11.429Z"
     }
+  },
+  {
+    "id": "5ad38fcd-6490-4640-8db3-4e3c0439a0e1",
+    "question": "工具类文件纳入 git（d790d68 / dbb4d48 / c921504）",
+    "answer": "①d790d68 chore(vexp)：纳入 manifest.json（68K，index.db 可由其重建）与忽略约定（.vexp/.gitignore、.gitattributes）；index.db/日志/运行时文件保持忽略。②dbb4d48 chore(continuity)：决策库随仓库（decisions.jsonl、decisions.json、SESSION_NOTES.md、INSTRUCTIONS.md、.gitattributes，5 文件）。③c921504 chore(agents)：AI 协作配置入仓（.cursorrules、AGENTS.md、CLAUDE.md、GEMINI.md、.github/copilot-instructions.md、.github/skills/，8 文件）。入库前敏感扫描（sk-/AKID/ghp_/密码等模式）无命中；完成后工作区完全干净。",
+    "timestamp": "2026-09-20T19:52:05.603Z",
+    "tags": [
+      "continuity",
+      "git",
+      "tooling",
+      "vexp",
+      "xiaozhi"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-20T19:52:05.603Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-20T19:52:05.604Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [
+        "git",
+        "github"
+      ],
+      "patterns": [],
+      "concepts": []
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-20T19:52:05.576Z"
+    }
   }
 ]

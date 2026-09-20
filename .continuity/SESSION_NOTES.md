@@ -13,5 +13,6 @@
 - 2026-09-20 补充：记忆机制改用 Context Recall（knowledge-agent-service：/v1/search 检索 + /v1/import/extension 快照写入；门槛=active+evidence）；scope 隔离已确认；组织策略 v2=xiaozhi 侧 LLM 总结（organizer 规范）+零 LLM 兜底+本地留证据（服务端只存节点、不落 turns）
 - 2026-09-20 补充：总结在设备侧（xiaozhi/Pi）执行已接受；三细节采纳（粒度≥3轮/状态 active+confidence/上限 8-12）；默认=workspace 'xiaozhi'、outbox 重试、遗忘=状态化；部署前置待办=Pi 型号/系统/SSH/网络
 - 2026-09-20 补充：Pi 在家→本地 CR 实例为部署默认（直连仅联调）；OS 首选 Bookworm Lite 64-bit（或验证 Trixie）；内存定 4GB（2GB 紧）
-- 2026-09-20：原有 code change 已提交（6b53c22 feat(agent)、b5c01dc chore(gitignore)）；方案落盘 docs/singleton-mode-plan.md（b590d32）；下一步=Phase 0 联调；CR 本地（树莓派）方案已通过（SQLite-only 起步，工程侧保持）；ASR 定案=云端流式（aliyun_stream/doubao_stream）；Neo4j 替换定案=SQLite 内建图层（先 graph-off、组织层时实现 adapter）；前期直连现有 CR 实例可接受
+- 2026-09-20：原有 code change 已提交（6b53c22 feat(agent)、b5c01dc chore(gitignore)）；方案落盘 docs/singleton-mode-plan.md（b590d32）；下一步=Phase 0 联调
+- 2026-09-20：工具类文件入库（d790d68 vexp / dbb4d48 continuity 决策库 / c921504 agents 配置）；工作区已干净；CR 本地（树莓派）方案已通过（SQLite-only 起步，工程侧保持）；ASR 定案=云端流式（aliyun_stream/doubao_stream）；Neo4j 替换定案=SQLite 内建图层（先 graph-off、组织层时实现 adapter）；前期直连现有 CR 实例可接受
 - 2026-09-20 补充：核实 import/extension 只落 nodes+vectors（turns 不落库）→ 快照须带零 LLM 最小节点；分支策略=Phase 1 不建分支（CR 零改动）、Phase 2 短周期 feature 分支
