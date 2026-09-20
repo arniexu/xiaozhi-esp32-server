@@ -5,7 +5,7 @@
 This file contains project context and decisions. AI assistants should read this file for context. MCP tools are an optional enhancement for richer interaction when connected.
 
 ## Project Context
-- **Total Decisions:** 15
+- **Total Decisions:** 16
 - **Known Topics:** xiaozhi, decision, context-recall, python, edge, sqlite, api, architecture, single-device, memory, raspberrypi, llm, roles, deployment, asr
 
 ## Current State
@@ -20,14 +20,8 @@ This file contains project context and decisions. AI assistants should read this
 - `6cc3874 Simplify testConnection method to always return true`
 
 **Working Tree:**
-- ?? .continuity/
-- ?? .cursorrules
-- ?? .github/copilot-instructions.md
-- ?? .github/skills/
-- ?? .vexp/
-- ?? AGENTS.md
-- ?? CLAUDE.md
-- ?? GEMINI.md
+- M .continuity/decisions.json
+- M .continuity/decisions.jsonl
 
 
 ## Operating Contract
@@ -53,25 +47,25 @@ Describe how this repository prefers to work with AI assistants.
 ---
 
 ## Recent Decisions
-1. **decision-b00b0f3a** (9/20/2026) [api, commit]
+1. **decision-5ad38fcd** (9/20/2026) [continuity, git]
+   - Q: 工具类文件纳入 git（d790d68 / dbb4d48 / c921504）
+   - A: ①d790d68 chore(vexp)：纳入 manifest.json（68K，index.db 可由其重建）与忽略约定（.vexp/.gitignore、.gitattributes）；index.db/日志/运行时文件保持忽略。②dbb4d48 chore(continuity)：决策库随仓库（decisions.jsonl、decisions.json、SESSION_NOTES.md、INSTRUCTIONS.md、.gitattributes，5 文件）。③c921504 chore(agents)：AI 协作配置入仓（.cursorrules、AGENTS.md、CLAUDE.md、GEMINI.md、.github/copilot-instructions.md、.github/skills/，8 文件）。入库前敏感扫描（sk-/AKID/ghp_/密码等模式）无命中；完成后工作区完全干净。
+
+2. **decision-b00b0f3a** (9/20/2026) [api, commit]
    - Q: 提交原有 code change + 方案落盘（6b53c22 / b5c01dc / b590d32）
    - A: ①6b53c22 feat(agent)：角色从服务器下发+运行时切换（manager-api agentId/归属校验/agent_list；xiaozhi-server 消息处理/差异重建/提示词热更新/回执/记忆隔离；8 文件 +203/-21）。②b5c01dc chore：.gitignore 忽略 Continuity 运行态、白名单决策文件入仓。③b590d32 docs：docs/singleton-mode-plan.md 方案落盘（118 行：决策摘要/架构/部署/记忆集成/实现清单/分阶段验收/开放项）。剩余未跟踪（工具类，未纳入本次提交）：.continuity（白名单已备待入）、.cursorrules、AGENTS.md、CLAUDE.md、GEMINI.md、.github/*、.vexp/。
 
-2. **decision-c1cc5483** (9/20/2026) [decision, deployment]
+3. **decision-c1cc5483** (9/20/2026) [decision, deployment]
    - Q: Pi 在家、CR 不可达 → 部署形态调整；官方 OS 与内存档位核查（2GB 够吗）
    - A: ①Pi 在家=现有 CR 实例不可达 → 部署形态确定为 Pi 本地 CR 实例（原'本地方案'转为部署默认）；'直连现有实例'降级为仅开发联调手段（在办公室/开发机验证链路与幂等/降级）；家庭数据从零建于 Pi，无迁移问题。②官方 OS 核查（raspberrypi.com，2026-09-15 镜像）：当前版 Trixie（Debian 13，内核 6.18）与 Legacy Bookworm（Debian 12，内核 6.12）均有 Full/桌面/Lite × 64/32-bit；官方 FAQ：Pi 5 仅支持 Trixie 与 Bookworm（更老不支持）。推荐 Raspberry Pi OS Lite 64-bit：首选 Bookworm Lite（Python 3.11，与项目官方 3.10 基线最近、依赖风险最低）；Trixie Lite（Python 3.13）需先验证依赖兼容（aiohttp 3.9.3 等固定版本包）。烧录用官方 Imager（可预置 WiFi/SSH/用户）。③内存：官方在售 1GB/2GB/4GB/8GB/16GB——2GB 存在。评估：2GB 技术上可跑（OS Lite ~0.2G + xiaozhi 全云 ~0.2-0.35G + CR(SQLite) ~0.1-0.2G ≈ 常态 0.5-0.8G），但余量薄、峰值逼近、swa...
 
-3. **decision-836581d6** (9/20/2026) [context-recall, decision]
+4. **decision-836581d6** (9/20/2026) [context-recall, decision]
    - Q: 收尾确认：LLM 总结在设备侧（xiaozhi/Pi）执行、三个细节按建议；还有遗留问题吗？
    - A: 确认定案：①LLM 总结在设备侧=xiaozhi 侧执行（Pi 上的 Python 服务调用云端 LLM；ESP32 固件不参与）——接受。②三个细节按建议：组织粒度=会话结束一次+长会话中途快照（补充默认：单次会话 ≥3 轮用户发言才组织，避免短连接频繁调用）；状态=active+confidence 标注；节点/边上限 ≤8/≤12 + 语音场景 prompt 微调。③新增实现默认值（无需逐项答复）：workspace 默认 'xiaozhi'（可配）；session id 带设备号；导入失败本地 outbox 重试；服务 additive 无删除→联调测试数据留存（用固定前缀 id）+『遗忘』只能状态化（superseded 不可检索，本地 raw 可自删）。④部署前置待办（需用户提供）：Pi5 型号/内存、系统就绪与 SSH、网络路径（联调期直连 bmcdev5 可行；若 Pi 放家里需本地 CR 实例——已批准）。⑤设计层无其他阻塞问题，可进入实现。
 
-4. **decision-895df4d2** (9/20/2026) [context-recall, decision]
+5. **decision-895df4d2** (9/20/2026) [context-recall, decision]
    - Q: 组织策略修正 v2：服务端只存节点不落 turns——总结由 xiaozhi 侧 LLM 完成？
    - A: 确认并定案：①服务不调模型（设计原则）+ 只落 nodes/vectors（已核实）→ 组织（总结/抽取）必须由调用方做；与扩展模式一致（organizer 在 VS Code 侧用聊天模型；xiaozhi 等价实现=保存时用云端 LLM）。②保存路径 v2：会话结束（或每 N 轮）后台调 LLM，按 organizer 规范产出 {nodes≤8, edges≤12, sessionContext 可选}（durable knowledge、canonical label、确定性 ID 幂等、evidenceTurnIds 必填、status=active）→ 快照 {session(workspaceId=xiaozhi)+turns+nodes+edges} POST /v1/import/extension；含 1 个会话摘要节点（summary=会话级总结，evidence=全部 turns）+ N 个知识节点+边。③LLM 失败/坏 JSON 降级=零 LLM 最小节点（原文截断）兜底，不丢数据。④xiaozhi 本地保留 raw turns 作为证据源（服务端不落 turns；证据引用指向本地可解析 ID）。⑤替代上一轮『不做 LLM 总结』决策（其假设『turns 落库供后续组织』已被代码核实推翻）。⑥待定细节：组织粒度（建议会话结束一次+长会话中途快照）、状...
-
-5. **decision-28c4cb70** (9/20/2026) [branch, context-recall]
-   - Q: 定案：SQLite 图层结论通过、前期直连现有 CR 实例；是否另建 CR 分支？
-   - A: ①SQLite 图层为默认（通过）：先 graph-off，组织层上线时实现 SqliteGraphStore adapter；pyoxigraph 留作触发式备选。②前期直连现有实例（bmcdev5:8765）可接受——注意：逻辑隔离（workspace_id=xiaozhi）、物理同库（家庭对话存于工程机）、迁移路径（去 Pi 时按 workspace 导出或从零重来，raw 阶段价值低）、网络前提（Pi 需可达该实例）。③代码核实修正（重要）：/v1/import/extension 只落 nodes（→memory_units）+ vectors；turns/sessions 不落库（仅用于 evidence 解析与 scope 映射）——纯推 sessions+turns 的导入结果=0 条记忆。'只写原始证据'的落地=快照含 {session(workspaceId=xiaozhi)+turns+一个零 LLM 最小节点(label/summary=对话原文, evidenceTurnIds=全部 turns, status=active)}→立即可检索且证据链完整；或 Phase 2 给服务加 turns 落库端点（更大改动、后置）。④分支策略：Phase 1（CR 零改动）不建分支，仅 xiaozhi 侧实现 provider；Phase 2（CR 改动：SQ...
 
 ---
 
