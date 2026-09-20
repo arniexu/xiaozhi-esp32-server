@@ -370,6 +370,11 @@ async def handleTextMessage(conn, message):
                 )
                 return
             conn.logger.bind(tag=TAG).debug(f"人脸消息处理完成")
+        elif msg_json["type"] == "agent":
+            # 设备请求浏览/切换角色：切换由 ConnectionHandler.handle_agent_message 处理，
+            # 它会重拉角色配置、热更新提示词，并回一条 {"type":"agent","status":...}
+            conn.logger.bind(tag=TAG).info(f"收到角色消息：{filter_sensitive_info(msg_json)}")
+            await conn.handle_agent_message(msg_json)
         elif msg_json["type"] == "server":
             # 记录日志时过滤敏感信息
             conn.logger.bind(tag=TAG).info(

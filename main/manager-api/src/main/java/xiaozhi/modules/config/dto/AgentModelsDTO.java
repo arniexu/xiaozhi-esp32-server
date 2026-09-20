@@ -22,4 +22,11 @@ public class AgentModelsDTO {
     @NotNull(message = "客户端已实例化的模型不能为空")
     @Schema(description = "客户端已实例化的模型")
     private Map<String, String> selectedModule;
+
+    /**
+     * 可选：设备请求使用的角色（智能体）id。
+     * 为空表示使用设备绑定的角色；非空但校验不通过时管理台静默回落到绑定角色。
+     */
+    @Schema(description = "请求切换到的智能体id（可选）")
+    private String agentId;
 }

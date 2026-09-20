@@ -19,7 +19,9 @@ import xiaozhi.common.redis.RedisKeys;
 import xiaozhi.common.redis.RedisUtils;
 import xiaozhi.common.utils.ConvertUtils;
 import xiaozhi.common.utils.JsonUtils;
+import xiaozhi.modules.agent.dao.AgentDao;
 import xiaozhi.modules.agent.dao.AgentVoicePrintDao;
+import xiaozhi.modules.agent.dto.AgentDTO;
 import xiaozhi.modules.agent.entity.AgentEntity;
 import xiaozhi.modules.agent.entity.AgentPluginMapping;
 import xiaozhi.modules.agent.entity.AgentTemplateEntity;
@@ -52,6 +54,7 @@ public class ConfigServiceImpl implements ConfigService {
     private final AgentPluginMappingService agentPluginMappingService;
     private final AgentMcpAccessPointService agentMcpAccessPointService;
     private final AgentVoicePrintDao agentVoicePrintDao;
+    private final AgentDao agentDao;
 
     @Override
     public Object getConfig(Boolean isCache) {
@@ -98,7 +101,8 @@ public class ConfigServiceImpl implements ConfigService {
     }
 
     @Override
-    public Map<String, Object> getAgentModels(String macAddress, Map<String, String> selectedModule) {
+    public Map<String, Object> getAgentModels(String macAddress, Map<String, String> selectedModule,
+            String agentId) {
         // 根据MAC地址查找设备
         DeviceEntity device = deviceService.getDeviceByMacAddress(macAddress);
         if (device == null) {
@@ -110,8 +114,24 @@ public class ConfigServiceImpl implements ConfigService {
             throw new RenException(ErrorCode.OTA_DEVICE_NOT_FOUND, "not found device");
         }
 
-        // 获取智能体信息
-        AgentEntity agent = agentService.getAgentById(device.getAgentId());
+        // 选择本次会话使用的智能体（角色）：
+        //   1. 设备显式请求了 agentId 且校验通过（存在 + 属于同一用户）→ 用它（运行时切换生效）
+        //   2. 否则使用设备绑定的角色
+        // 校验不通过时**静默回落**而不是抛异常：设备刚发来切换请求，抛错会让它连配置都拿不到。
+        AgentEntity agent = null;
+        if (StringUtils.isNotBlank(agentId)) {
+            agent = getAgentEntityById(agentId);
+            if (agent == null) {
+                // 角色不存在：静默回落（不抛异常，否则设备连配置都拿不到）
+            } else if (device.getUserId() != null && agent.getUserId() != null
+                    && !device.getUserId().equals(agent.getUserId())) {
+                // 角色不属于该设备所属用户：静默回落
+                agent = null;
+            }
+        }
+        if (agent == null) {
+            agent = getAgentEntityById(device.getAgentId());
+        }
         if (agent == null) {
             throw new RenException("智能体未找到");
         }
@@ -153,8 +173,9 @@ public class ConfigServiceImpl implements ConfigService {
 
         // 添加函数调用参数信息
         if (!Objects.equals(agent.getIntentModelId(), "Intent_nointent")) {
-            String agentId = agent.getId();
-            List<AgentPluginMapping> pluginMappings = agentPluginMappingService.agentPluginParamsByAgentId(agentId);
+            String pluginAgentId = agent.getId();
+            List<AgentPluginMapping> pluginMappings = agentPluginMappingService
+                    .agentPluginParamsByAgentId(pluginAgentId);
             if (pluginMappings != null && !pluginMappings.isEmpty()) {
                 Map<String, Object> pluginParams = new HashMap<>();
                 for (AgentPluginMapping pluginMapping : pluginMappings) {
@@ -169,6 +190,23 @@ public class ConfigServiceImpl implements ConfigService {
             mcpEndpoint = mcpEndpoint.replace("/mcp/", "/call/");
             result.put("mcp_endpoint", mcpEndpoint);
         }
+        // 该设备所属用户名下的角色列表，供设备端展示与切换（设备只浏览/切换，不创建）
+        if (device.getUserId() != null) {
+            List<AgentDTO> userAgents = agentService.getUserAgents(device.getUserId());
+            if (userAgents != null && !userAgents.isEmpty()) {
+                List<Map<String, Object>> agentList = new ArrayList<>();
+                for (AgentDTO item : userAgents) {
+                    Map<String, Object> one = new HashMap<>();
+                    one.put("id", item.getId());
+                    one.put("name", item.getAgentName());
+                    one.put("tts_voice_name", item.getTtsVoiceName());
+                    agentList.add(one);
+                }
+                result.put("agent_list", agentList);
+            }
+        }
+        result.put("agent_id", agent.getId());
+
         // 获取声纹信息
         buildVoiceprintConfig(agent.getId(), result);
 
@@ -262,6 +300,21 @@ public class ConfigServiceImpl implements ConfigService {
         }
 
         return config;
+    }
+
+    /**
+     * 按 id 取智能体实体；不存在返回 null（不抛异常，调用方自行回落）。
+     * 不走 {@code AgentService#getAgentById}：它返回 VO 且在不存在时抛异常，
+     * 这里需要"取不到就回落"的语义。
+     *
+     * @param id 智能体 id
+     * @return 实体或 null
+     */
+    private AgentEntity getAgentEntityById(String id) {
+        if (StringUtils.isBlank(id)) {
+            return null;
+        }
+        return agentDao.selectById(id);
     }
 
     /**

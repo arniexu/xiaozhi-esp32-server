@@ -71,9 +71,12 @@ def get_config_from_api(config):
     return config_data
 
 
-def get_private_config_from_api(config, device_id, client_id):
-    """从Java API获取私有配置"""
-    return get_agent_models(device_id, client_id, config["selected_module"])
+def get_private_config_from_api(config, device_id, client_id, agent_id: str = None):
+    """从Java API获取私有配置
+
+    agent_id 非空时请求该角色的配置（用于运行时切换角色）。
+    """
+    return get_agent_models(device_id, client_id, config["selected_module"], agent_id)
 
 
 def ensure_directories(config):

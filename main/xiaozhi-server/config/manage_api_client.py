@@ -131,17 +131,24 @@ def get_server_config() -> Optional[Dict]:
 
 
 def get_agent_models(
-    mac_address: str, client_id: str, selected_module: Dict
+    mac_address: str, client_id: str, selected_module: Dict, agent_id: Optional[str] = None
 ) -> Optional[Dict]:
-    """获取代理模型配置"""
+    """获取代理模型配置
+
+    agent_id 非空时表示请求使用指定角色（运行时切换）；管理台会校验归属，
+    不通过则回落到设备绑定角色（不会因此报错，保证设备始终拿到配置）。
+    """
+    payload = {
+        "macAddress": mac_address,
+        "clientId": client_id,
+        "selectedModule": selected_module,
+    }
+    if agent_id:
+        payload["agentId"] = agent_id
     return ManageApiClient._instance._execute_request(
         "POST",
         "/config/agent-models",
-        json={
-            "macAddress": mac_address,
-            "clientId": client_id,
-            "selectedModule": selected_module,
-        },
+        json=payload,
     )
 
 

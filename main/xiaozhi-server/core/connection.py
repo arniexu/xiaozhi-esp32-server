@@ -76,6 +76,10 @@ class ConnectionHandler:
         self.headers = None
         self.device_id = None
         self.client_ip = None
+        # 当前使用的角色（智能体）：由 _initialize_private_config 写入，
+        # 运行时切换角色后同步更新（见 handle_agent_message）
+        self.agent_id = None
+        self.agent_name = None
         self.prompt = None
         self.welcome_msg = None
         self.max_output_size = 0
@@ -444,10 +448,14 @@ class ConnectionHandler:
         except Exception as e:
             self.logger.bind(tag=TAG).warning(f"声纹识别初始化失败: {str(e)}")
 
-    def _initialize_private_config(self):
-        """如果是从配置文件获取，则进行二次实例化"""
+    def _initialize_private_config(self, agent_id: str = None):
+        """如果是从配置文件获取，则进行二次实例化
+
+        agent_id 非空时按该角色拉取配置（运行时切换角色复用本函数，
+        因为 provider 重建本来就是按差异进行的，天然可重入）。
+        """
         if not self.read_config_from_api:
-            return
+            return None
         """从接口获取差异化的配置进行二次实例化，非全量重新实例化"""
         try:
             begin_time = time.time()
@@ -455,6 +463,7 @@ class ConnectionHandler:
                 self.config,
                 self.headers.get("device-id"),
                 self.headers.get("client-id", self.headers.get("device-id")),
+                agent_id,
             )
             private_config["delete_audio"] = bool(self.config.get("delete_audio", True))
             self.logger.bind(tag=TAG).info(
@@ -569,12 +578,99 @@ class ConnectionHandler:
         if modules.get("memory", None) is not None:
             self.memory = modules["memory"]
 
+        # 记录本次生效的角色，供切换回执与后续复用
+        resolved_agent_id = private_config.get("agent_id")
+        if resolved_agent_id:
+            self.agent_id = resolved_agent_id
+        resolved_name = None
+        for item in private_config.get("agent_list", []) or []:
+            if item.get("id") == self.agent_id:
+                resolved_name = item.get("name")
+                break
+        if resolved_name:
+            self.agent_name = resolved_name
+        return private_config
+
+    async def handle_agent_message(self, msg_json):
+        """处理设备的角色（智能体）切换请求。
+
+        设备 → 服务器：{"type":"agent","command":"switch","agent_id":"..."}
+
+        校验与回落都在管理台的 agent-models 里完成（归属不通过则回落绑定角色并
+        在返回体里带上实际生效的 agent_id），因此这里只需比对"请求的角色"与
+        "实际生效的角色"即可判断是否切换成功，不需要重复实现权限逻辑。
+        """
+        if not self.read_config_from_api:
+            await self._send_agent_ack("rejected", self.agent_id, "设备未启用服务器配置模式")
+            return
+        command = msg_json.get("command")
+        if command != "switch":
+            await self._send_agent_ack("rejected", self.agent_id, f"未知命令: {command}")
+            return
+        target = (msg_json.get("agent_id") or "").strip()
+        if not target:
+            await self._send_agent_ack("rejected", self.agent_id, "缺少 agent_id")
+            return
+        previous = self.agent_id
+        try:
+            await self._switch_agent(target)
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"切换角色失败: {e}")
+            await self._send_agent_ack("rejected", previous, f"切换失败: {e}")
+            return
+        if self.agent_id == target:
+            self.logger.bind(tag=TAG).info(f"角色已切换: {previous} -> {target}")
+            await self._send_agent_ack("switched", self.agent_id, None)
+        else:
+            # 管理台回落到别的角色（通常是归属校验未通过）
+            self.logger.bind(tag=TAG).warning(
+                f"切换角色被拒: 请求 {target}，实际生效 {self.agent_id}"
+            )
+            await self._send_agent_ack("rejected", self.agent_id, "角色不可用或无权限")
+
+    async def _switch_agent(self, target_agent_id: str):
+        """重拉角色配置并热更新系统提示词。
+
+        只换角色、保留对话历史：提示词存在 Dialogue 的系统消息里，逐轮生效
+        （见 _initialize_components 的 change_system_prompt）。
+
+        重建范围由 _initialize_private_config 内部的差异比较决定，而比较基准是
+        self.config（上一个生效角色），因此切回旧角色同样能正确重建所需 provider。
+        """
+        self._initialize_private_config(agent_id=target_agent_id)
+        if self.agent_id != target_agent_id:
+            return
+        prompt = self.config.get("prompt")
+        if prompt:
+            self.change_system_prompt(self.prompt_manager.get_quick_prompt(prompt))
+        # 记忆按角色隔离，避免切换后串记忆
+        self._initialize_memory()
+        self.logger.bind(tag=TAG).info(f"角色配置已生效: {self.agent_id} ({self.agent_name})")
+
+    async def _send_agent_ack(self, status: str, agent_id, reason):
+        """回执：沿用 server 信封风格，字段名词表固定，便于设备端解析。"""
+        payload = {
+            "type": "agent",
+            "status": status,
+            "agent_id": agent_id or "",
+        }
+        if reason:
+            payload["reason"] = reason
+        try:
+            await self.websocket.send(json.dumps(payload, ensure_ascii=False))
+        except Exception as e:
+            self.logger.bind(tag=TAG).warning(f"角色回执发送失败: {e}")
+
     def _initialize_memory(self):
         if self.memory is None:
             return
         """初始化记忆模块"""
+        # 记忆按"设备+角色"隔离：切换角色后各自独立，避免上下文串味
+        memory_role_id = (
+            f"{self.device_id}#{self.agent_id}" if self.agent_id else self.device_id
+        )
         self.memory.init_memory(
-            role_id=self.device_id,
+            role_id=memory_role_id,
             llm=self.llm,
             summary_memory=self.config.get("summaryMemory", None),
             save_to_file=not self.read_config_from_api,
