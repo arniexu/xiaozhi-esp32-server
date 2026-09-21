@@ -1429,5 +1429,149 @@
       "source": "cli",
       "timestamp": "2026-09-21T03:20:55.978Z"
     }
+  },
+  {
+    "id": "d2e68bf7-292d-4438-b615-bc12ad5d0cb1",
+    "question": "ASR 启动失败根因＝本机时钟慢 27 分 35 秒（阿里云 InvalidTimeStamp.Expired）",
+    "answer": "①现象：app.py 启动时 AliyunStreamASR._refresh_token 报'无法获取有效的访问Token'。②诊断（/tmp/aliyun_token_debug.py）：代理路径正常（http_proxy 已被 requests 自动采用，请求到达阿里云），阿里云返回 HTTP 400 Code=InvalidTimeStamp.Expired——签名通过、仅时间戳过期（容忍±15min）。③验证：本机 UTC 04:56:14 vs 阿里云/百度 Date 头 05:23:49/50 GMT → 慢 27 分 35 秒；System clock synchronized: no（NTP active 但未同步，可能 UDP123 被公司网阻断）。④处置：需用户以 sudo 修复（重启 timesyncd 或按服务器时间手动 date -s）；我不便代跑。⑤附带：开发机联调配置已切 8010 端口 + CR 指向 graph-off 8876（data/.config.yaml，已备份原 vendor 配置逻辑不变）。⑥备选绕过：NLS 控制台 24h AccessToken 走 token 字段可绕开 CreateToken 的时钟依赖。",
+    "timestamp": "2026-09-21T04:57:24.221Z",
+    "tags": [
+      "aliyun",
+      "asr",
+      "clock",
+      "debug",
+      "deploy"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-21T04:57:24.221Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-21T04:57:24.222Z",
+        "action": "created"
+      }
+    ],
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-21T04:57:24.188Z"
+    }
+  },
+  {
+    "id": "d33edb64-5181-428f-a49c-e6dff735c03b",
+    "question": "语音记忆闭环真机验证通过：真实对话 7 节点/3 边 + 召回命中（泰安）",
+    "answer": "①用户经 test_page 语音/文本对话（自称山东泰安、聊'字节跳动男友'等人设话题）→ 断开（VS Code 转发链路不传关闭信号，服务端约 3 分钟空闲超时才感知并保存）；②保存：快照推送成功 imported_memories=7 nodes=7 edges=3 fallback=False（真实 DeepSeek 组织）；本地 turns.jsonl 8 行；CR 26 条；③召回验证：'我是哪里人？'（provider 路径）→ 命中「用户：用户是山东泰安人」+ 相关节点；'字节跳动'3 条；注意：直查 CR 不拆词会 0 命中（勿混淆）；④盲区：'老家/在哪长大'等近义说法不命中（字面门限制，已记 CR 待办）；⑤过程发现并修复：共享 provider 角色竞态（并发探针把用户首段会话存到探针角色）→ 保存前重绑角色（91a1073）；召回测试会话也已自动保存（turns 14 行、CR 30 条）。",
+    "timestamp": "2026-09-21T06:27:56.679Z",
+    "tags": [
+      "e2e",
+      "memory",
+      "verification",
+      "voice"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-21T06:27:56.679Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-21T06:27:56.680Z",
+        "action": "created"
+      }
+    ],
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-21T06:27:56.647Z"
+    }
+  },
+  {
+    "id": "a7a542a3-365a-461b-b5aa-1aa92c955560",
+    "question": "公司网络 wss 链路修复集（配置化）：代理/版本/ffprobe（27f1303）",
+    "answer": "①ASR/TTS 的 wss 直连被公司网墙：websockets 14.2 无代理支持、edge-tts 7.0.0 直连超时/403；DeepSeek（httpx 自动代理）正常。②方案：provider 增加 proxy 配置项（data/.config.yaml：ASR.AliyunStreamASR.proxy / TTS.EdgeTTS.proxy；树莓派部署删除即直连；代码含 websockets<15 的降级警告）。③依赖：websockets 升 16.1.1（>=15 才有 proxy 参数；cozepy 钉<15 冲突已在 requirements 注释）；edge-tts 升 7.2.8（7.0.0 被 MS 403）；④ffprobe 缺失（pydub 音频转换）→ johnvansickle 静态包 ffprobe 放 ~/.local/bin（无需 sudo）；⑤部署文档补'开发机（公司网络）备注'（16ed96d）。",
+    "timestamp": "2026-09-21T06:27:59.283Z",
+    "tags": [
+      "deploy",
+      "edge-tts",
+      "ffprobe",
+      "proxy",
+      "websockets"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-21T06:27:59.283Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-21T06:27:59.283Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [
+        "websocket"
+      ],
+      "patterns": [],
+      "concepts": []
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-21T06:27:59.248Z"
+    }
   }
 ]
