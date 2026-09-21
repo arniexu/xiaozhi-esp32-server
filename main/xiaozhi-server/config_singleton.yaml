@@ -24,7 +24,8 @@ selected_module:
   VAD: SileroVAD
   # 云端流式 ASR：DoubaoStreamASR 或 AliyunStreamASR 二选一（配置块见下方 ASR 段）
   ASR: DoubaoStreamASR
-  # 云端 LLM：ChatGLMLLM（智谱 glm-4-flash 免费款，推荐起步）或 DoubaoLLM
+  # 云端 LLM 四选一：ChatGLMLLM（智谱免费款，起步）/ DeepSeekLLM / KimiLLM / DoubaoLLM
+  # 换用时改本行，并填下方 LLM 段对应密钥
   LLM: ChatGLMLLM
   VLLM: ChatGLMVLLM
   TTS: EdgeTTS
@@ -44,6 +45,17 @@ LLM:
   # 开通与取密钥：https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey
   # DoubaoLLM:
   #   api_key: 你的doubao web key
+  # DeepSeek（内置支持，按量付费）：https://platform.deepseek.com/ 取 api_key
+  #   type/model_name/url 沿用默认值（openai / deepseek-chat / api.deepseek.com）
+  # DeepSeekLLM:
+  #   api_key: 你的deepseek api_key
+  # Kimi / Moonshot（OpenAI 兼容，自定义块；是默认配置里没有的新键，四项必须写全）：
+  # 取密钥：https://platform.moonshot.cn/console/api-keys
+  # KimiLLM:
+  #   type: openai
+  #   model_name: moonshot-v1-8k    # 以控制台模型列表为准（如 kimi-k2 系列）
+  #   url: https://api.moonshot.cn/v1
+  #   api_key: 你的kimi api_key
 
 ASR:
   DoubaoStreamASR:

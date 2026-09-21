@@ -7,7 +7,7 @@
 
 - 硬件：Raspberry Pi 5 4GB；27W 官方电源；主动散热；NVMe（建议）或 A2 级 32GB+ SD
 - 系统：Raspberry Pi OS **Lite 64-bit**（Bookworm 首选；Trixie 需先过验收）
-- 云密钥：智谱 `api_key`（免费款）；火山语音 `appid/access_token`（或阿里云语音）
+- 云密钥：LLM 密钥（智谱免费款 / DeepSeek / Kimi 任一，配置见 `config_singleton.yaml` LLM 段）；火山语音 `appid/access_token`（或阿里云语音）
 - 项目文件：`xiaozhi-esp32-server` 仓库 + `knowledge-agent-service` 仓库（git clone 或 rsync）
 
 ## 1. 基础环境
@@ -24,7 +24,8 @@ cd <repo>/main/xiaozhi-server
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 # 可选裁剪（省磁盘）：不启用 FunASR 时可移除 torch/torchaudio/funasr/modelscope —— 改动后须重跑验收
 cp config_singleton.yaml data/.config.yaml
-# 编辑 data/.config.yaml：填智谱 api_key、火山语音密钥；确认 Memory.context_recall.service_url
+# 编辑 data/.config.yaml：选 LLM（ChatGLM/DeepSeek/Kimi/Doubao）填对应 api_key、火山语音密钥；
+# 确认 Memory.context_recall.service_url
 ```
 
 ## 3. Context Recall 本地实例（SQLite-only，不配 Neo4j）
