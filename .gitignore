@@ -185,3 +185,11 @@ SESSION_HANDOFF.md
 !.continuity/.gitattributes
 !.continuity/SESSION_NOTES.md
 !.continuity/INSTRUCTIONS.md
+
+# Home Assistant 运行态与凭据（.storage 含 refresh token/jwt_key/密码哈希，勿入库）
+homeassistant_config/.storage/
+homeassistant_config/home-assistant*.db
+homeassistant_config/home-assistant.log*
+homeassistant_config/secrets.yaml
+# 运行日志
+nohup.out
