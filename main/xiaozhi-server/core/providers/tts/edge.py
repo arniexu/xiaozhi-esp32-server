@@ -13,6 +13,8 @@ class TTSProvider(TTSProviderBase):
         else:
             self.voice = config.get("voice")
         self.audio_file_type = config.get("format", "mp3")
+        # 可选：HTTP 代理（公司网络必须；家庭网络留空不配）
+        self.proxy = (config.get("proxy") or "").strip() or None
 
     def generate_filename(self, extension=".mp3"):
         return os.path.join(
@@ -22,7 +24,7 @@ class TTSProvider(TTSProviderBase):
 
     async def text_to_speak(self, text, output_file):
         try:
-            communicate = edge_tts.Communicate(text, voice=self.voice)
+            communicate = edge_tts.Communicate(text, voice=self.voice, proxy=self.proxy)
             if output_file:
                 # 确保目录存在并创建空文件
                 os.makedirs(os.path.dirname(output_file), exist_ok=True)

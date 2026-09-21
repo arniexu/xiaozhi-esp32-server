@@ -4,6 +4,7 @@ import uuid
 import hmac
 import base64
 import hashlib
+import inspect
 import asyncio
 import requests
 import websockets
@@ -18,6 +19,12 @@ from core.providers.asr.dto.dto import InterfaceType
 
 TAG = __name__
 logger = setup_logging()
+
+# websockets >=15 才支持 proxy 参数（公司网络下 wss 需经 HTTP 代理；家庭网络无影响）
+try:
+    _WS_SUPPORTS_PROXY = "proxy" in inspect.signature(websockets.connect).parameters
+except (TypeError, ValueError):  # 防御：签名不可得时按不支持处理
+    _WS_SUPPORTS_PROXY = False
 
 
 class AccessToken:
@@ -85,6 +92,8 @@ class ASRProvider(ASRProviderBase):
         self.token = config.get("token")
         self.host = config.get("host", "nls-gateway-cn-shanghai.aliyuncs.com")
         self.ws_url = f"wss://{self.host}/ws/v1"
+        # 可选：HTTP 代理（公司网络必须；家庭网络留空不配）
+        self.proxy = (config.get("proxy") or "").strip() or None
         self.max_sentence_silence = config.get("max_sentence_silence")
         self.output_dir = config.get("output_dir", "./audio_output")
         self.delete_audio_file = delete_audio_file
@@ -155,14 +164,22 @@ class ASRProvider(ASRProviderBase):
         
         # 建立连接
         headers = {"X-NLS-Token": self.token}
-        self.asr_ws = await websockets.connect(
-            self.ws_url,
+        connect_kwargs = dict(
             additional_headers=headers,
             max_size=1000000000,
             ping_interval=None,
             ping_timeout=None,
             close_timeout=5,
         )
+        if self.proxy:
+            if _WS_SUPPORTS_PROXY:
+                connect_kwargs["proxy"] = self.proxy
+            else:
+                logger.bind(tag=TAG).warning(
+                    f"已配置代理 {self.proxy} 但 websockets<15 不支持（本次直连）；"
+                    f"请升级: pip install -U 'websockets>=15'"
+                )
+        self.asr_ws = await websockets.connect(self.ws_url, **connect_kwargs)
         
         self.is_processing = True
         self.server_ready = False  # 重置服务器准备状态

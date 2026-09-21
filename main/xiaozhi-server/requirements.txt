@@ -1,6 +1,8 @@
 pyyml==0.0.2
 torch>=2.5.0
 silero_vad==5.1.2
+# 公司代理环境下 wss 需 websockets>=15（开发机手动升级：pip install -U "websockets>=15"）；
+# cozepy 钉 <15，启用 Coze 时需权衡
 websockets==14.2
 opuslib_next==1.1.2
 numpy>=2.2.6
@@ -14,7 +16,8 @@ funasr>=1.2.6
 torchaudio>=2.5.0
 openai==1.61.0
 google-generativeai==0.8.4
-edge_tts==7.0.0
+# 7.0.0 会被 Microsoft 拒绝（403 Invalid response status），需 >=7.2
+edge_tts>=7.2
 httpx==0.27.2
 aiohttp==3.9.3
 aiohttp_cors==0.7.0
