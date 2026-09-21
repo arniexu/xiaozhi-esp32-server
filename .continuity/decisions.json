@@ -1744,5 +1744,51 @@
       "source": "cli",
       "timestamp": "2026-09-21T13:25:05.018Z"
     }
+  },
+  {
+    "id": "a14aea6a-ebfa-4d61-9288-948be4ac5f1a",
+    "question": "Pi 部署需要安装 CUDA 吗？默认 pip 安装会发生什么？（923c6e5）",
+    "answer": "①功能上完全不需要：Pi 无 NVIDIA GPU，全链路推理在云端（云端 ASR/LLM + EdgeTTS），VAD 仅 CPU 小张量；CUDA 在 Pi 上装不了也用不上。②但默认安装有坑（新发现）：torch 2.14 起 Linux 轮子（含 aarch64）在元数据里声明 CUDA 依赖（cuda-toolkit[cublas..]==13.0.3、cuda-bindings、nvidia-cudnn-cu13、nccl、nvshmem、cusparselt、triton；marker 仅 platform_system=='Linux'、不限架构）→ 在 Pi 上直接 pip install torch 会静默拉入整条 CUDA 栈：已核 aarch64 轮子合计约 2.5GB（cublas 518MB、cudnn 621MB、cusolver 213MB、cufft 204MB、nccl 206MB、cusparselt 211MB、triton 216MB、cusparse 155MB、curand 59MB、nvrtc 41MB 等），装后更大且无任何用途。③对策（已落文档 923c6e5）：Pi/无卡机先装 CPU 轮子 pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu（已核 aarch64 cp311 存在：torch 最高 2.14.0+cpu、torchaudio 2.11.0+cpu），再 pip install -r requirements.txt（已满足的不会被重装）；deploy 手册 §2 与 requirements.txt 均已加注。④顺带：开发机 venv 现为 torch 2.14.0+cu130 + nvidia 包 3.2GB（本机无 GPU、cuda.is_available=False）→ 可换 CPU 轮子回收 ~3.2GB（可选，未做）。",
+    "timestamp": "2026-09-21T13:39:58.807Z",
+    "tags": [
+      "cuda",
+      "deploy",
+      "deps",
+      "pi",
+      "torch"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-21T13:39:58.807Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-21T13:39:58.807Z",
+        "action": "created"
+      }
+    ],
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-21T13:39:58.773Z"
+    }
   }
 ]
