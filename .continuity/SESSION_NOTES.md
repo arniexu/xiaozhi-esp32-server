@@ -19,6 +19,7 @@
 - 2026-09-20：工具类文件入库（d790d68 vexp / dbb4d48 continuity 决策库 / c921504 agents 配置）；工作区已干净
 - 记忆质量修复落地（0dbffb8）：两阶段组织（逐句语义/实体分析→接地聚合）+ 注入身份框架 + 存量元评论过滤 + 边注入（inject_edges，graph-off 兜底）
 - 澄清：'台湾/北京/男友'为模型自编扮演（非系统设定、非用户输入）；'上海'为用户真述；旧污染节点 additive 不可删，待 CR P4 supersede 根治
+- 真机复测（浏览器 test_page 直连 8010）：8 turns → 逐句分析 keep=3 → 6 单元（3 事实+2 边单元+1 摘要）fallback=False；人设（台湾/北京/男友）0 入库；字面召回 OK（团子/吉他），无系统词泄漏与身份混淆；近义召回盲区仍在（'我叫什么名字' 未命中 '用户自称小熊'，需语义/embedding 通道）
 
 ## 🚧 Blockers & Challenges
 - 完整模式部署前置（如采用）：本机 Java/Maven 未装、当前用户不在 docker 组、8000 端口被 pyserver 占用
@@ -34,10 +35,12 @@
 - 新工作流确立：CR 侧标准语义化（P1 strict_workspace / P2 CJK OR 回退 / P3 include_graph / P4 supersede；flag 兼容演进）——提案在 knowledge-agent-service docs/cjk-recall-todo.md，xiaozhi 客户端增强退为防御层。待办：实现 CR 侧（含 tests 回归 + xiaozhi battery/hard 双验证）；真机语音联调（graph-off 实例）；Pi 部署待硬件。
 - 暂停点（等下午继续）：语音端到端测试路径已明确（test/test_page.html 浏览器直连，无需设备）；待用户决定：①测试端口（xiaozhi 跑 8010 不动 pyserver，或停 pyserver 腾 8000）；②manager-api/manager-web（8001/8002，单例不需要）是否停掉。其余全部已提交、工作区干净。
 - 语音记忆闭环真机验证通过（真实对话→7节点/3边→召回命中泰安）；公司网络修复集已提交（27f1303 代理配置化/91a1073 角色重绑/16ed96d 文档）并重启生效。剩余：最后一轮自由使用验证（断开后等约3分钟保存）；Pi 部署待硬件；CR 待办（近义召回/去重等）。
+- 召回增强：xiaozhi 侧 embedding 通道（复刻 extension embed → 语义通道生效，修'名字/近义'盲区）
+- CR 侧标准语义化 P1-P4（strict_workspace / CJK OR 回退 / include_graph / supersede）
 
 ## 📝 Open Questions
 <!-- No entries yet -->
 
 ---
-*Last updated by AI: 2026-09-21T07:24:01.319Z*
+*Last updated by AI: 2026-09-21T07:33:41.004Z*
 *Last updated by User: Never*
