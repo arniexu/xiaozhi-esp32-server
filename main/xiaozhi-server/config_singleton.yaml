@@ -1,0 +1,74 @@
+# 单例模式配置模板（单设备 · 无 manager 栈 · Context Recall 记忆）
+# 设计文档：docs/singleton-mode-plan.md
+#
+# 使用方法：
+#   1. 将本文件复制到 xiaozhi-server/data 目录，重命名为 .config.yaml
+#      （若 data 下已有 .config.yaml，先确认其中没有需要保留的内容）
+#   2. 按注释填写云服务密钥（LLM / 流式 ASR）
+#   3. 启动前确认本地 Context Recall 服务已运行（默认 127.0.0.1:8765）
+#
+# 说明：
+#   - 本文件只需写"与 config.yaml 默认值不同"的部分（深合并，本文件优先）；
+#   - 单例模式不依赖 manager-api：不要在本文件里出现 manager-api 段；
+#   - 记忆 provider 实现见 core/providers/memory/context_recall/（W2，已验收）。
+
+server:
+  ip: 0.0.0.0
+  port: 8000
+  http_port: 8003
+  # 设备端固件中烧录的 websocket 地址；此处留空时 OTA 接口会自动按本机 IP 生成。
+  # 如需显式指定（例如固定树莓派地址）再取消注释：
+  # websocket: ws://你的树莓派IP:8000/xiaozhi/v1/
+
+selected_module:
+  VAD: SileroVAD
+  # 云端流式 ASR：DoubaoStreamASR 或 AliyunStreamASR 二选一（配置块见下方 ASR 段）
+  ASR: DoubaoStreamASR
+  # 云端 LLM：ChatGLMLLM（智谱 glm-4-flash 免费款，推荐起步）或 DoubaoLLM
+  LLM: ChatGLMLLM
+  VLLM: ChatGLMVLLM
+  TTS: EdgeTTS
+  # Context Recall 记忆（本地服务，配置块见下方 Memory 段）
+  Memory: context_recall
+  Intent: function_call
+
+log:
+  log_level: INFO
+
+LLM:
+  ChatGLMLLM:
+    # 注册并创建 API Key（免费款 glm-4-flash）：
+    # https://bigmodel.cn/usercenter/proj-mgmt/apikeys
+    api_key: 你的智谱 api_key
+  # 稳定场景可选 DoubaoLLM（换用后记得把 selected_module.LLM 改成 DoubaoLLM）：
+  # 开通与取密钥：https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey
+  # DoubaoLLM:
+  #   api_key: 你的doubao web key
+
+ASR:
+  DoubaoStreamASR:
+    # 火山引擎语音服务（流式，按时长计费）：
+    # https://console.volcengine.com/speech/app
+    appid: 你的火山引擎语音服务appid
+    access_token: 你的火山引擎语音服务access_token
+  # 二选一：阿里云智能语音交互（实时流式）：
+  # https://nls-portal.console.aliyun.com/
+  # AliyunStreamASR:
+  #   appkey: 你的阿里云智能语音交互服务项目Appkey
+  #   access_key_id: 你的阿里云账号access_key_id
+  #   access_key_secret: 你的阿里云账号access_key_secret
+  #   host: nls-gateway-cn-shanghai.aliyuncs.com
+  #   max_sentence_silence: 800
+
+Memory:
+  context_recall:
+    # Context Recall 本地服务地址；留空 = 禁用记忆（可先跑通对话，再启用）
+    service_url: http://127.0.0.1:8765
+    workspace_id: xiaozhi
+    # 勿改：默认 global 会跨 workspace 合并召回（W1 实测）
+    scope_fallback: "none"
+    min_similarity: 0.35
+    limit: 6
+    timeout: 2.5
+    # 单次会话用户发言少于此轮数时不组织知识（仍写本地 raw turns 作证据）
+    min_user_turns: 3
