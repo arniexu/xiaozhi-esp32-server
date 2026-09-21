@@ -1637,5 +1637,59 @@
         "action": "created"
       }
     ]
+  },
+  {
+    "id": "adc11d03-e32c-46d0-822b-bc058d8c09d7",
+    "question": "单例模式启动手册落盘并推送 GitHub（5bd83e4）",
+    "answer": "①新增 docs/singleton-mode-start.md：启动前检查（venv/.config.yaml/IP/端口空闲）→ 启动顺序（CR 先、xiaozhi 后；CR 缺席时 xiaozhi 走空记忆降级不阻塞）→ 启停/日志速查表 → 三项成功判据（is-active/端口 8000·8003·8765/日志无 Traceback）→ 设备端联调（≥3 轮触发组织、save 日志 nodes/edges、raw turns 在 data/context_recall）→ 日常运维（linger 核对、备份两处数据目录）→ 验收复跑（3 项）→ 启动故障速查表（端口占用/配置错/找不到 app.py/召回空/时钟 InvalidTimeStamp/ffprobe/代理）→ 开发机差异附录。②docs/singleton-mode-deploy.md header 增加交叉引用（deploy 负责装、start 负责起）。③事实复核：install-singleton-service.sh 仅 enable 不 start（首次须手动）；CR 的 install-user-service.sh 为 enable --now；端口 8000/8003/8765；min_user_turns=3。④推送 origin/main 9fe98d1..5bd83e4；未夹带 .vexp/.codex 等工具态改动。",
+    "timestamp": "2026-09-21T12:31:57.949Z",
+    "tags": [
+      "deploy",
+      "docs",
+      "raspberrypi",
+      "singleton"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-21T12:31:57.949Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-21T12:31:57.949Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [
+        "github"
+      ],
+      "patterns": [
+        "singleton"
+      ],
+      "concepts": []
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-21T12:31:57.918Z"
+    }
   }
 ]
