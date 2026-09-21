@@ -22,7 +22,11 @@ python3 --version    # 期望 3.11+（Bookworm）；3.13（Trixie）需先过验
 
 ```bash
 cd <repo>/main/xiaozhi-server
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3 -m venv .venv
+# 先装 CPU 版 torch/torchaudio（Pi 无 GPU，此步必做）：默认 PyPI 轮子在 Linux 上把 CUDA 组件写进依赖
+# （aarch64 轮子同样如此），直接装 requirements 会连带拉入 CUDA 栈数 GB，装完无任何用途
+.venv/bin/pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+.venv/bin/pip install -r requirements.txt
 # onnxruntime 无需手动安装：由 silero_vad（硬依赖）与 markitdown→magika 自动带入，aarch64 轮子约 15MB；
 # 规划路径（云端 ASR + torch 版 SileroVAD）不使用它，保留即可，勿手动剔除
 # 可选裁剪（省磁盘）：确认不用本地 ASR 后可移除 funasr / modelscope；

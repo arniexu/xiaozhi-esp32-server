@@ -1,4 +1,7 @@
 pyyml==0.0.2
+# 无 GPU 环境（含树莓派）：先装 CPU 轮子，再执行本文件——
+# 默认 PyPI 轮子在 Linux 上把 CUDA 组件写进依赖，会白拉数 GB（Pi/无卡开发机用不到）：
+#   pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
 torch>=2.5.0
 silero_vad==5.1.2
 # 公司代理环境下 wss 需 websockets>=15（开发机手动升级：pip install -U "websockets>=15"）；
