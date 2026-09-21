@@ -84,3 +84,5 @@ Memory:
     timeout: 2.5
     # 单次会话用户发言少于此轮数时不组织知识（仍写本地 raw turns 作证据）
     min_user_turns: 3
+    # 无图谱部署（graph off）的关系兜底：会话边渲染成文本知识单元一并导入
+    inject_edges: true

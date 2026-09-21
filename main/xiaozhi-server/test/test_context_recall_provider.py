@@ -271,11 +271,12 @@ def test_organizer_normal():
         f"{r1.nodes[1]['tags']}",
     )
     check(
-        "1.9 LLM 调用参数与 user_content 含 turn id 列表",
+        "1.9 LLM 调用参数与 user_content 含 turn id 列表（两阶段：首次为逐句分析）",
         llm.calls
-        and llm.calls[0]["kwargs"] == {"max_tokens": 2000, "temperature": 0.2}
-        and "sess-1#t1" in llm.calls[0]["user"]
-        and "我偏好暖光" in llm.calls[0]["user"],
+        and llm.calls[0]["kwargs"] == {"max_tokens": 4000, "temperature": 0.0}
+        and llm.calls[-1]["kwargs"] == {"max_tokens": 2000, "temperature": 0.2}
+        and "sess-1#t1" in llm.calls[-1]["user"]
+        and "我偏好暖光" in llm.calls[-1]["user"],
     )
     check(
         "1.10 summary 字段透传",
@@ -675,10 +676,10 @@ def test_save_memory():
                 and body["nodes"][0]["kind"] == "workflow",
             )
             check(
-                "7.5 LLM 收到对话原文与 turn id 列表",
+                "7.5 LLM 收到对话原文与 turn id 列表（末次调用）",
                 llm.calls
-                and "我偏好暖光" in llm.calls[0]["user"]
-                and body["turns"][0]["id"] in llm.calls[0]["user"],
+                and "我偏好暖光" in llm.calls[-1]["user"]
+                and body["turns"][0]["id"] in llm.calls[-1]["user"],
             )
             with open(raw_path, "r", encoding="utf-8") as file:
                 raw_lines = [line for line in file.read().split("\n") if line.strip()]
@@ -693,6 +694,16 @@ def test_save_memory():
                 "7.7 推送成功 → outbox 为空",
                 provider.outbox.pending_count() == 0,
                 f"pending={provider.outbox.pending_count()}",
+            )
+            check(
+                "7.8 边注入默认开：快照含 relation 单元",
+                any(
+                    isinstance(n.get("tags"), list)
+                    and n["tags"][:1] == ["relation"]
+                    and "—RELATED_TO→" in str(n.get("summary") or "")
+                    for n in body["nodes"]
+                ),
+                f"tags={[n.get('tags') for n in body['nodes']]}",
             )
 
             provider2 = MemoryProvider(provider_config(), None)
@@ -1055,6 +1066,92 @@ def test_query_two_phase_and_scope():
     )
 
 
+# ---------------------------------------------------------------------------
+# 14) 两阶段组织（逐句分析 → 接地聚合）与边注入
+# ---------------------------------------------------------------------------
+class ScriptedLLM:
+    """按调用顺序返回预置文本（用于两阶段流程验证）。"""
+
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = []
+
+    def response_no_stream(self, system_prompt, user_prompt, **kwargs):
+        self.calls.append(
+            {"system": system_prompt, "user": user_prompt, "kwargs": kwargs}
+        )
+        if not self.responses:
+            raise RuntimeError("scripted responses exhausted")
+        return self.responses.pop(0)
+
+
+ANALYSIS_JSON = json.dumps(
+    {
+        "turns": [
+            {
+                "i": 1,
+                "speaker": "user",
+                "about": "用户",
+                "type": "user_preference",
+                "entities": [{"name": "暖光", "kind": "preference"}],
+                "relations": [],
+                "fact": "用户偏好客厅暖光",
+                "keep": True,
+            },
+            {
+                "i": 2,
+                "speaker": "assistant",
+                "about": "助手",
+                "type": "assistant_roleplay",
+                "entities": [],
+                "relations": [],
+                "fact": "",
+                "keep": False,
+            },
+        ]
+    },
+    ensure_ascii=False,
+)
+
+
+def test_two_phase_and_edges():
+    # 14.1 两阶段链路：首调用逐句分析（temp 0.0），二调用接地聚合（temp 0.2）
+    llm = ScriptedLLM([ANALYSIS_JSON, SAMPLE_JSON])
+    result = organizer_mod.organize(
+        llm, "User: 我偏好暖光\n", SAMPLE_TURNS, "sess-14", NOW
+    )
+    check(
+        "14.1 两阶段调用链（分析 → 聚合）",
+        len(llm.calls) == 2
+        and llm.calls[0]["kwargs"] == {"max_tokens": 4000, "temperature": 0.0}
+        and "逐句" in llm.calls[0]["system"]
+        and "[1] 用户" in llm.calls[0]["user"]
+        and llm.calls[1]["kwargs"] == {"max_tokens": 2000, "temperature": 0.2}
+        and '"keep": true' in llm.calls[1]["user"]
+        and result.fallback is False
+        and len(result.nodes) == 3,
+        f"calls={len(llm.calls)}, nodes={len(result.nodes)}",
+    )
+    # 14.2 边 → 文本单元（三元组渲染、确定性 ID、relation 标签）
+    units = organizer_mod.edges_to_units(result.nodes, result.edges)
+    check(
+        "14.2 边注入单元（—RELATED_TO→ 三元组）",
+        len(units) == 1
+        and units[0]["id"].startswith("knowledge:")
+        and "—RELATED_TO→" in units[0]["summary"]
+        and units[0]["tags"] == ["relation", "related_to"]
+        and units[0]["evidenceTurnIds"],
+        f"units={len(units)}",
+    )
+    # 14.3 inject_edges 配置解析（默认开 / 显式关）
+    check(
+        "14.3 inject_edges 配置解析（默认开、显式关）",
+        MemoryProvider(provider_config(), None).inject_edges is True
+        and MemoryProvider(provider_config(inject_edges="false"), None).inject_edges
+        is False,
+    )
+
+
 def main():
     print("=" * 60)
     print("context_recall provider 自跑测试（无 pytest / 无网络 / 无真实 LLM）")
@@ -1072,6 +1169,7 @@ def main():
     run("11 查询拆词（query_utils）", test_query_candidates)
     run("12 多路检索合并", test_query_multi_route)
     run("13 二阶段兜底与 workspace 过滤", test_query_two_phase_and_scope)
+    run("14 两阶段组织与边注入", test_two_phase_and_edges)
 
     passed = sum(1 for _, ok in RESULTS if ok)
     total = len(RESULTS)

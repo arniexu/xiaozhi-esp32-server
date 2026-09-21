@@ -22,7 +22,7 @@ from datetime import datetime
 
 from ..base import MemoryProviderBase, logger
 from .cr_client import CRClient
-from .organizer import fallback_minimal, organize
+from .organizer import edges_to_units, fallback_minimal, organize
 from .query_utils import (
     build_fallback_candidates,
     build_query_candidates,
@@ -49,6 +49,10 @@ DEFAULT_MIN_USER_TURNS = 3
 
 MAX_HIT_CHARS = 160
 MAX_MEMORY_CHARS = 800
+
+# 旧版组织器可能把“记忆管理评论”写进节点内容（如“未经用户确认”“存在矛盾”）；
+# 这类元评论注入后只会让对话显得错乱，格式化时直接丢弃（存量防御；源头已修：ORGANIZE_SYSTEM_PROMPT）。
+META_NOISE_MARKERS = ("未经用户确认", "属于单方面记忆", "存在矛盾")
 
 
 def _now_iso() -> str:
@@ -87,6 +91,11 @@ class MemoryProvider(MemoryProviderBase):
         self.min_user_turns = _as_int(
             config.get("min_user_turns"), DEFAULT_MIN_USER_TURNS
         )
+        # 无图谱部署的边注入：会话边渲染成文本知识单元一并导入（默认开；graph off 时保住关系信息）
+        inject_edges = config.get("inject_edges", True)
+        if isinstance(inject_edges, str):
+            inject_edges = inject_edges.strip().lower() not in ("0", "false", "no", "off")
+        self.inject_edges = bool(inject_edges)
         self.summary_memory = summary_memory
         # 短连接客户端：可同时被主循环与保存线程的两个事件循环使用（见 cr_client.py）
         self.client = CRClient(self.service_url, self.timeout)
@@ -208,6 +217,8 @@ class MemoryProvider(MemoryProviderBase):
             resolution = str(hit.get("resolution") or "").strip()
             if not summary and not resolution:
                 continue
+            if any(marker in f"{summary}{resolution}" for marker in META_NOISE_MARKERS):
+                continue
             key = hit.get("id") or f"{summary}|{resolution}"
             if key in seen:
                 continue
@@ -264,7 +275,10 @@ class MemoryProvider(MemoryProviderBase):
             logger.bind(tag=TAG).warning("未配置组织 LLM，使用零 LLM 最小节点")
             result = fallback_minimal(dialogue_text, turns, session_id, now_iso)
 
-        # 4) 快照（organizer 已把会话摘要节点放在 nodes 首位）
+        # 4) 快照（organizer 已把会话摘要节点放在 nodes 首位；边可选转文本单元，无图谱部署兜底）
+        snapshot_nodes = list(result.nodes)
+        if self.inject_edges and result.edges:
+            snapshot_nodes.extend(edges_to_units(result.nodes, result.edges))
         session = build_session(
             self.role_id,
             session_id,
@@ -272,7 +286,7 @@ class MemoryProvider(MemoryProviderBase):
             now_iso,
             self.workspace_id,
         )
-        snapshot = build_snapshot(session, turns, result.nodes, result.edges)
+        snapshot = build_snapshot(session, turns, snapshot_nodes, result.edges)
 
         # 5) 推送；失败落 outbox（服务 additive 且 ID 确定性 → 重投幂等）
         response = None
@@ -291,7 +305,7 @@ class MemoryProvider(MemoryProviderBase):
             logger.bind(tag=TAG).info(
                 f"快照推送成功: session={session_id}, "
                 f"imported_memories={response.get('imported_memories')}, "
-                f"nodes={len(result.nodes)}, edges={len(result.edges)}, "
+                f"nodes={len(snapshot_nodes)}, edges={len(result.edges)}, "
                 f"fallback={result.fallback}"
             )
 

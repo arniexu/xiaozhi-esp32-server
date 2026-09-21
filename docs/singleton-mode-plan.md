@@ -136,3 +136,21 @@ Pi 上两个 user 级 systemd 服务：
 - 组织规范：`knowledge-agent-extension/src/organizer.ts`（prompt / schema / 限制 / 确定性 ID）
 - 数据模型：`knowledge-agent-extension/src/model.ts`（KnowledgeSnapshot / KnowledgeNode / SessionRecord / TurnRecord）
 - 服务实现：`knowledge-agent-service/src/knowledge_agent_service/{api.py, memory_store.py, migration.py}`
+
+---
+
+## 10. 记忆质量修复：身份混淆与逐句分析（2026-09-21 晚）
+
+**问题（真机实测）**：助手的即兴扮演人设（自编“台湾女生/现居北京/男友在字节跳动”，非系统设定、非用户要求）被组织器当作知识存储；且把助手自己的错误陈述再次入库（“用户所在地…存在矛盾，不确定”“助手提到…未经用户确认”），召回注入后模型开始混淆“用户 vs 助手”，并向用户泄露“节点”等系统词。
+
+**根因**：① 组织器把（a）助手扮演内容、（b）对记忆的分析评论（“未确认/矛盾”）都写进了节点；② 注入端未声明“用户=对话者、助手=你自己”的身份框架。
+
+**修复（xiaozhi 侧，四层）**：
+1. **逐句语义/实体分析前置**（`organizer.ANALYZE_SYSTEM_PROMPT`）：每句一条分析项（speaker/about/type/entities/relations/fact/keep）；助手扮演一律 `assistant_roleplay & keep=false`；禁写“未确认/矛盾”类评论；
+2. **接地聚合**：聚合只基于 `keep=true` 条目生成节点/边（防模型自由发挥）；分析失败自动回退旧的单次组织（兼容）；
+3. **注入身份框架**（`agent-base-prompt.txt` 历史记忆段）：明确“用户”=对话者、“助手/小智”条目=你自己的角色扮演、冲突时以用户当前说法为准、禁止提及“记忆/节点”等系统词；
+4. **存量防御**（`context_recall._format_hits`）：含“未经用户确认/属于单方面记忆/存在矛盾”标记的旧节点在注入时直接丢弃。
+
+**边注入（无图谱部署的关系兜底）**：CR 仅在 graph on 时把 `edges` 写入 Neo4j，graph off（Pi 方案）会丢弃边；现由 `organizer.edges_to_units` 把边渲染成文本单元（`主体 —RELATION→ 客体`，确定性 ID 可跨会话去重）一并导入，配置项 `Memory.context_recall.inject_edges`（默认开）。
+
+**验证**：provider 自测 85/85（新增两阶段链路/边单元/inject_edges 用例）；真实 DeepSeek 仿写污染场景：人设与元评论 0 入库，产出 5 个用户事实节点 + 4 条干净关系边（`用户 —LIVES_IN→ 上海` 等）。
