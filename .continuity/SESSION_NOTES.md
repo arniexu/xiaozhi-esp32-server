@@ -29,10 +29,11 @@
 - 真机联调通过（DeepSeek 组织 5 节点/2 边 + CR 导入）+ 召回增强落地（359fae4：拆词多路检索，74/74，整句问句全命中）；CR 侧根治待办入库 knowledge-agent-service（13edc33）。下一步：启动 xiaozhi-server 真机语音验证（设备连 ws://10.112.229.254:8000/xiaozhi/v1/）；Pi 部署待硬件。
 - 召回增强收尾（f82b03a）：两阶段检索 + 严格 workspace 白名单；电池 16/16、自测 81/81 全绿。图谱副作用：8765（Neo4j on）同步了测试实体 30 节点/40 边，用户选择暂留，清理脚本就绪（knowledge-agent-service/scripts/cleanup-xiaozhi-test-entities.py --apply）。待办：真机语音联调（建议 graph-off 实例）；Pi 部署待硬件。
 - 加强版测试 hard v3 通过（d19f590）：26 条矩阵（含更新/更正/设备杂音/负例）0 失败、噪声 0、p95 259ms、稳定性 3×3 一致；唯一残留=更新旧值并存（CR 待办 #4 升级，证据 f46bc15）。后续：真机语音全链路（需设备）、长会话节点上限压力测试。
+- 新工作流确立：CR 侧标准语义化（P1 strict_workspace / P2 CJK OR 回退 / P3 include_graph / P4 supersede；flag 兼容演进）——提案在 knowledge-agent-service docs/cjk-recall-todo.md，xiaozhi 客户端增强退为防御层。待办：实现 CR 侧（含 tests 回归 + xiaozhi battery/hard 双验证）；真机语音联调（graph-off 实例）；Pi 部署待硬件。
 
 ## 📝 Open Questions
 <!-- No entries yet -->
 
 ---
-*Last updated by AI: 2026-09-21T03:04:58.214Z*
+*Last updated by AI: 2026-09-21T03:20:52.021Z*
 *Last updated by User: Never*

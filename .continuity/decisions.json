@@ -1383,5 +1383,51 @@
       "source": "cli",
       "timestamp": "2026-09-21T03:04:48.196Z"
     }
+  },
+  {
+    "id": "387916d1-88e6-4f91-8822-bb62daf87e14",
+    "question": "方向确认：CR 侧标准语义化（flag 兼容演进），客户端不强背永久 workaround",
+    "answer": "①缘由：xiaozhi 客户端的拆词/白名单/二阶段本质是 CR 语义不标准的补偿；用户提出修在源头，避免长期分叉。②提案（knowledge-agent-service docs/cjk-recall-todo.md）：P1 strict_workspace 参数（默认 False 保 extension 行为；True 时排除 ws='' 全局桶）+ scope_match 诚实化（exact+global / global_included 计数）；P2 CJK 通道与 ASCII 对齐（bigram OR 回退，按 _search_once 既有 AND+OR 并联哲学，只补 CJK 缺口）；P3 include_graph 开关（默认 True 兼容；xiaozhi 设 False）；P4 更新/更正 supersede；附兼容矩阵。③策略：新参数保默认、调用方 opt-in、大版本再翻默认；xiaozhi 增强退为防御层，CR 修复后用 battery/hard 回归验证可简化。④提交：knowledge 提案 + xiaozhi 方案文档方向确认。",
+    "timestamp": "2026-09-21T03:20:56.011Z",
+    "tags": [
+      "context-recall",
+      "proposal",
+      "scope",
+      "semantics",
+      "standard"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-21T03:20:56.011Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-21T03:20:56.011Z",
+        "action": "created"
+      }
+    ],
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-21T03:20:55.978Z"
+    }
   }
 ]
