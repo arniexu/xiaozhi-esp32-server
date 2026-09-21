@@ -66,3 +66,12 @@ bash main/xiaozhi-server/scripts/run-acceptance.sh
   - 企业代理环境需绕过 localhost（脚本内建 `trust_env=False`/空 ProxyHandler，无需处理）；
   - CR 服务 additive 无删除："遗忘"以状态化处理（superseded）；
   - 修改 `data/.config.yaml` 后：`systemctl --user restart xiaozhi-server`。
+
+## 附：开发机（公司网络）联调备注
+
+- **出网需 HTTP 代理**：写入 `ASR.AliyunStreamASR.proxy` / `TTS.EdgeTTS.proxy`（家庭/树莓派部署删除该行即直连）
+- **`websockets` 需 >=15** 才支持代理参数（`pip install -U "websockets>=15"`；cozepy 钉 <15，启用 Coze 时需权衡）
+- **`edge-tts` 需 >=7.2**（7.0.0 会被 Microsoft 403 拒绝）
+- **音频转换需 `ffprobe`**（可放 `~/.local/bin`；树莓派走 `apt install ffmpeg`）
+- **时钟必须准**（阿里云签名容忍 ±15 分钟；`timedatectl` 或手动校准）
+- 页面测试经 VS Code 端口转发时，**断开后服务端约 2-3 分钟空闲超时才感知并保存**（转发链路不传递关闭信号）；设备直连无此延迟
