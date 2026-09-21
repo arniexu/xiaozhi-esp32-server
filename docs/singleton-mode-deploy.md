@@ -23,7 +23,10 @@ python3 --version    # 期望 3.11+（Bookworm）；3.13（Trixie）需先过验
 ```bash
 cd <repo>/main/xiaozhi-server
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-# 可选裁剪（省磁盘）：不启用 FunASR 时可移除 torch/torchaudio/funasr/modelscope —— 改动后须重跑验收
+# onnxruntime 无需手动安装：由 silero_vad（硬依赖）与 markitdown→magika 自动带入，aarch64 轮子约 15MB；
+# 规划路径（云端 ASR + torch 版 SileroVAD）不使用它，保留即可，勿手动剔除
+# 可选裁剪（省磁盘）：确认不用本地 ASR 后可移除 funasr / modelscope；
+# torch / torchaudio 必须保留（SileroVAD 经 torch.hub 加载，hubconf 运行时校验两者）—— 改动后须重跑验收
 cp config_singleton.yaml data/.config.yaml
 # 编辑 data/.config.yaml：选 LLM（ChatGLM/DeepSeek/Kimi/Doubao）填对应 api_key、火山语音密钥；
 # 确认 Memory.context_recall.service_url

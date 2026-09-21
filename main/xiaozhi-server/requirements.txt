@@ -29,7 +29,8 @@ cozepy==0.12.0
 mem0ai==0.1.62
 beautifulsoup4>=4.13.4
 modelscope>=1.28.1
-sherpa_onnx==1.12.4
+# 1.12.4 在 PyPI 不存在（版本号笔误）；1.12.40 为同线最近可用版本，aarch64 轮子齐备（Pi 部署用）
+sherpa_onnx==1.12.40
 mcp==1.8.1
 cnlunar==0.2.0
 PySocks==1.7.1
