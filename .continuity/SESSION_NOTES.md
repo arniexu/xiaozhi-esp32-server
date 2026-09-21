@@ -20,5 +20,9 @@
 - **完成**：方案设计闭环（单例模式 / Pi5 / 全云模型 / CR 记忆集成全部定案）；代码与工具提交（6b53c22、b5c01dc、b590d32、d790d68、dbb4d48、c921504、58f9705、70cbd5e）；方案落盘 `docs/singleton-mode-plan.md`；决策全部入 Continuity；工作区干净。
 - **下一步（明日）**：W1 = Phase 0 联调（CR 一次性测试实例 + 伪造快照全链路：导入/命中/幂等/隔离/降级）；可并行 W3（organizer 移植）。
 - **阻塞/排除**：Pi 部署（等硬件，已排除）；组织联调需智谱 LLM key（免费款，可先注册）。
-- **工期口径**：软件侧剩余 3–5 个工作日（AI 加速），约 1 周内闭环。；CR 本地（树莓派）方案已通过（SQLite-only 起步，工程侧保持）；ASR 定案=云端流式（aliyun_stream/doubao_stream）；Neo4j 替换定案=SQLite 内建图层（先 graph-off、组织层时实现 adapter）；前期直连现有 CR 实例可接受
+- **工期口径**：软件侧剩余 3–5 个工作日（AI 加速），约 1 周内闭环。
+
+## 2026-09-21（新会话）
+- W1 Phase 0 联调通过（smoke 脚本 7/7）；关键发现：scope_fallback 必须显式 "none"（默认 global 会跨 workspace 召回）；企业代理需绕过。
+- 下一步：W2 provider 骨架 + W3 organizer 移植（可 dsh 派发）。；CR 本地（树莓派）方案已通过（SQLite-only 起步，工程侧保持）；ASR 定案=云端流式（aliyun_stream/doubao_stream）；Neo4j 替换定案=SQLite 内建图层（先 graph-off、组织层时实现 adapter）；前期直连现有 CR 实例可接受
 - 2026-09-20 补充：核实 import/extension 只落 nodes+vectors（turns 不落库）→ 快照须带零 LLM 最小节点；分支策略=Phase 1 不建分支（CR 零改动）、Phase 2 短周期 feature 分支

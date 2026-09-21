@@ -907,5 +907,57 @@
       "source": "cli",
       "timestamp": "2026-09-20T19:52:05.576Z"
     }
+  },
+  {
+    "id": "2f76bb89-cdf0-4e4a-af2e-756fee50b564",
+    "question": "W1 Phase 0 联调通过（00fe21f；冒烟脚本 7/7）",
+    "answer": "①一次性测试实例（127.0.0.1:8876、/tmp/xiaozhi-cr-test、Neo4j 关闭；服务 v0.1.7）启动正常。②冒烟脚本 7/7：健康 / 导入(imported=1) / 命中(scope exact) / 幂等(total 1->1、单条) / 严格隔离(exact、0 泄漏) / 降级(0.00s 快速失败)。③关键坑实证：默认 scope_fallback=global 会跨 workspace 合并召回（scope_match=relaxed）→ provider 必须显式传 scope_fallback='none'。④环境坑：企业代理（http_proxy=child-prc.intel.com:913）会让 localhost 请求 403；脚本已内建空 ProxyHandler 绕过。⑤产物入库：00fe21f main/xiaozhi-server/test/test_context_recall_smoke.py（Pi 验收可复用）。⑥下一步：W2 provider 骨架（接口定义）+ W3 organizer 移植（可 dsh 派发）。",
+    "timestamp": "2026-09-21T01:10:08.896Z",
+    "tags": [
+      "context-recall",
+      "phase0",
+      "testing",
+      "xiaozhi"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-21T01:10:08.896Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-21T01:10:08.897Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [
+        "neo4j"
+      ],
+      "patterns": [],
+      "concepts": []
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-21T01:10:08.866Z"
+    }
   }
 ]
