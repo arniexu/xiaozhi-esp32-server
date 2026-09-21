@@ -24,5 +24,6 @@
 
 ## 2026-09-21（新会话）
 - W1 Phase 0 联调通过（smoke 脚本 7/7）；关键发现：scope_fallback 必须显式 "none"（默认 global 会跨 workspace 召回）；企业代理需绕过。
-- 下一步：W2 provider 骨架 + W3 organizer 移植（可 dsh 派发）。；CR 本地（树莓派）方案已通过（SQLite-only 起步，工程侧保持）；ASR 定案=云端流式（aliyun_stream/doubao_stream）；Neo4j 替换定案=SQLite 内建图层（先 graph-off、组织层时实现 adapter）；前期直连现有 CR 实例可接受
+- 下一步：W2 provider 骨架 + W3 organizer 移植（可 dsh 派发）。
+- W2 完成并验收（ee6bfad）：provider 六文件+测试 60/60+真实 8876 写路径 E2E 通过；connection.py 无需改动；下一步=真机联调（需 LLM key）。；CR 本地（树莓派）方案已通过（SQLite-only 起步，工程侧保持）；ASR 定案=云端流式（aliyun_stream/doubao_stream）；Neo4j 替换定案=SQLite 内建图层（先 graph-off、组织层时实现 adapter）；前期直连现有 CR 实例可接受
 - 2026-09-20 补充：核实 import/extension 只落 nodes+vectors（turns 不落库）→ 快照须带零 LLM 最小节点；分支策略=Phase 1 不建分支（CR 零改动）、Phase 2 短周期 feature 分支

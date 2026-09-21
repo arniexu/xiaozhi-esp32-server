@@ -5,28 +5,33 @@
 This file contains project context and decisions. AI assistants should read this file for context. MCP tools are an optional enhancement for richer interaction when connected.
 
 ## Project Context
-- **Total Decisions:** 17
-- **Known Topics:** xiaozhi, decision, context-recall, python, edge, sqlite, api, architecture, single-device, memory, raspberrypi, llm, roles, deployment, asr
+- **Total Decisions:** 18
+- **Known Topics:** xiaozhi, decision, context-recall, api, python, edge, sqlite, memory, architecture, single-device, raspberrypi, llm, roles, deployment, asr
 
 ## Current State
 **Repository:** xiaozhi-esp32-server
 **Project Type:** Software Project
 **Branch:** main
-**Tracking:** ahead 11, behind 0
+**Tracking:** ahead 13, behind 0
 
 **Recent Commits:**
+- `9fb9cb9 chore(continuity): W1 联调记录（Phase 0 通过 7/7）`
+- `00fe21f test(context-recall): Phase 0 联调冒烟脚本（导入/命中/幂等/隔离/降级）`
 - `c9a1b55 chore(continuity): 会话收尾总结（2026-09-20）`
 - `70cbd5e chore(continuity): 同步自动生成文件（.cursorrules / CLAUDE.md / GEMINI.md）`
 - `58f9705 chore(continuity): 记录工具入库决策与提交信息`
-- `c921504 chore(agents): AI 协作配置入仓（.cursorrules / AGENTS.md / CLAUDE.md / GEMINI.md / .github skills）`
-- `dbb4d48 chore(continuity): 决策库随仓库（decisions.jsonl / decisions.json / SESSION_NOTES / INSTRUCTIONS）`
 
 **Working Tree:**
-- M .continuity/SESSION_NOTES.md
-- M .continuity/decisions.json
-- M .continuity/decisions.jsonl
-- M .vexp/manifest.json
-- ?? .codex/
+- M main/xiaozhi-server/core/providers/memory/context_recall/storage.py
+- M main/xiaozhi-server/core/providers/memory/context_recall/organizer.py
+- M main/xiaozhi-server/core/providers/asr/aliyun_stream.py
+- M main/xiaozhi-server/core/providers/memory/context_recall/cr_client.py
+- M main/xiaozhi-server/core/providers/memory/context_recall/context_recall.py
+- M .github/skills/dispatch-dsh-kimicode/references/briefing-template.md
+- M main/xiaozhi-server/core/providers/memory/mem_local_short/mem_local_short.py
+- M main/xiaozhi-server/core/utils/modules_initialize.py
+- M .github/skills/dispatch-dsh-kimicode/SKILL.md
+- M main/manager-web/package.json
 
 
 ## Operating Contract
@@ -52,25 +57,25 @@ Describe how this repository prefers to work with AI assistants.
 ---
 
 ## Recent Decisions
-1. **decision-2f76bb89** (9/21/2026) [context-recall, phase0]
+1. **decision-7f77b0ec** (9/21/2026) [api, context-recall]
+   - Q: W2 完成并验收通过（ee6bfad）：context_recall 记忆 provider
+   - A: ①交付：core/providers/memory/context_recall/ 六文件（provider 255 行/client 113/organizer 290/snapshot 104/storage 165 + 测试 866 行 60 断言）+ config.yaml 配置块（ee6bfad，8 文件 +1808）。实现者=dsh W2 波次（报告 /tmp/xiaozhi-w2/w2-report.md），验证者=Copilot。②独立验收：compileall ✓；测试重跑 60/60 ✓；真实 8876 写路径 E2E（Fake LLM）→ imported_memories=2、query 命中（项目节点+会话摘要）、跨 workspace 0 泄漏 ✓；范围检查仅允许 8 文件 ✓。③关键实现确认：scope_fallback='none' 硬编码、trust_env=False、短连接（主循环+保存线程双事件循环安全）、用户发言<3 轮不组织、outbox 原子写+补投、确定性 ID 幂等、service_url 空=整体禁用。④预存在环境问题（data/.config.yaml 指向 8002 失效 manager-api + 企业代理；单例部署将移除 manager 依赖）已独立证明与 W2 无关。⑤W5 结论：connection.py 无需改...
+
+2. **decision-2f76bb89** (9/21/2026) [context-recall, phase0]
    - Q: W1 Phase 0 联调通过（00fe21f；冒烟脚本 7/7）
    - A: ①一次性测试实例（127.0.0.1:8876、/tmp/xiaozhi-cr-test、Neo4j 关闭；服务 v0.1.7）启动正常。②冒烟脚本 7/7：健康 / 导入(imported=1) / 命中(scope exact) / 幂等(total 1->1、单条) / 严格隔离(exact、0 泄漏) / 降级(0.00s 快速失败)。③关键坑实证：默认 scope_fallback=global 会跨 workspace 合并召回（scope_match=relaxed）→ provider 必须显式传 scope_fallback='none'。④环境坑：企业代理（http_proxy=child-prc.intel.com:913）会让 localhost 请求 403；脚本已内建空 ProxyHandler 绕过。⑤产物入库：00fe21f main/xiaozhi-server/test/test_context_recall_smoke.py（Pi 验收可复用）。⑥下一步：W2 provider 骨架（接口定义）+ W3 organizer 移植（可 dsh 派发）。
 
-2. **decision-5ad38fcd** (9/20/2026) [continuity, git]
+3. **decision-5ad38fcd** (9/20/2026) [continuity, git]
    - Q: 工具类文件纳入 git（d790d68 / dbb4d48 / c921504）
    - A: ①d790d68 chore(vexp)：纳入 manifest.json（68K，index.db 可由其重建）与忽略约定（.vexp/.gitignore、.gitattributes）；index.db/日志/运行时文件保持忽略。②dbb4d48 chore(continuity)：决策库随仓库（decisions.jsonl、decisions.json、SESSION_NOTES.md、INSTRUCTIONS.md、.gitattributes，5 文件）。③c921504 chore(agents)：AI 协作配置入仓（.cursorrules、AGENTS.md、CLAUDE.md、GEMINI.md、.github/copilot-instructions.md、.github/skills/，8 文件）。入库前敏感扫描（sk-/AKID/ghp_/密码等模式）无命中；完成后工作区完全干净。
 
-3. **decision-b00b0f3a** (9/20/2026) [api, commit]
+4. **decision-b00b0f3a** (9/20/2026) [api, commit]
    - Q: 提交原有 code change + 方案落盘（6b53c22 / b5c01dc / b590d32）
    - A: ①6b53c22 feat(agent)：角色从服务器下发+运行时切换（manager-api agentId/归属校验/agent_list；xiaozhi-server 消息处理/差异重建/提示词热更新/回执/记忆隔离；8 文件 +203/-21）。②b5c01dc chore：.gitignore 忽略 Continuity 运行态、白名单决策文件入仓。③b590d32 docs：docs/singleton-mode-plan.md 方案落盘（118 行：决策摘要/架构/部署/记忆集成/实现清单/分阶段验收/开放项）。剩余未跟踪（工具类，未纳入本次提交）：.continuity（白名单已备待入）、.cursorrules、AGENTS.md、CLAUDE.md、GEMINI.md、.github/*、.vexp/。
 
-4. **decision-c1cc5483** (9/20/2026) [decision, deployment]
+5. **decision-c1cc5483** (9/20/2026) [decision, deployment]
    - Q: Pi 在家、CR 不可达 → 部署形态调整；官方 OS 与内存档位核查（2GB 够吗）
    - A: ①Pi 在家=现有 CR 实例不可达 → 部署形态确定为 Pi 本地 CR 实例（原'本地方案'转为部署默认）；'直连现有实例'降级为仅开发联调手段（在办公室/开发机验证链路与幂等/降级）；家庭数据从零建于 Pi，无迁移问题。②官方 OS 核查（raspberrypi.com，2026-09-15 镜像）：当前版 Trixie（Debian 13，内核 6.18）与 Legacy Bookworm（Debian 12，内核 6.12）均有 Full/桌面/Lite × 64/32-bit；官方 FAQ：Pi 5 仅支持 Trixie 与 Bookworm（更老不支持）。推荐 Raspberry Pi OS Lite 64-bit：首选 Bookworm Lite（Python 3.11，与项目官方 3.10 基线最近、依赖风险最低）；Trixie Lite（Python 3.13）需先验证依赖兼容（aiohttp 3.9.3 等固定版本包）。烧录用官方 Imager（可预置 WiFi/SSH/用户）。③内存：官方在售 1GB/2GB/4GB/8GB/16GB——2GB 存在。评估：2GB 技术上可跑（OS Lite ~0.2G + xiaozhi 全云 ~0.2-0.35G + CR(SQLite) ~0.1-0.2G ≈ 常态 0.5-0.8G），但余量薄、峰值逼近、swa...
-
-5. **decision-836581d6** (9/20/2026) [context-recall, decision]
-   - Q: 收尾确认：LLM 总结在设备侧（xiaozhi/Pi）执行、三个细节按建议；还有遗留问题吗？
-   - A: 确认定案：①LLM 总结在设备侧=xiaozhi 侧执行（Pi 上的 Python 服务调用云端 LLM；ESP32 固件不参与）——接受。②三个细节按建议：组织粒度=会话结束一次+长会话中途快照（补充默认：单次会话 ≥3 轮用户发言才组织，避免短连接频繁调用）；状态=active+confidence 标注；节点/边上限 ≤8/≤12 + 语音场景 prompt 微调。③新增实现默认值（无需逐项答复）：workspace 默认 'xiaozhi'（可配）；session id 带设备号；导入失败本地 outbox 重试；服务 additive 无删除→联调测试数据留存（用固定前缀 id）+『遗忘』只能状态化（superseded 不可检索，本地 raw 可自删）。④部署前置待办（需用户提供）：Pi5 型号/内存、系统就绪与 SSH、网络路径（联调期直连 bmcdev5 可行；若 Pi 放家里需本地 CR 实例——已批准）。⑤设计层无其他阻塞问题，可进入实现。
 
 ---
 
