@@ -1274,5 +1274,61 @@
       "source": "cli",
       "timestamp": "2026-09-21T02:27:10.118Z"
     }
+  },
+  {
+    "id": "aab33271-1b6f-4c45-a323-6274b85907b9",
+    "question": "两阶段检索 + 严格 workspace 白名单落地（f82b03a）：召回电池 16/16 全绿",
+    "answer": "①新增召回电池脚本（test_context_recall_live_battery.py）：2 段会话 + 16 条查询矩阵（13 正例/3 负例），暴露 3 个真问题：'小明喜欢什么动物' 字面全落空、'早餐吃' 停用词粘字、'今天天气' 被 graph 通道污染（图实体无 workspace 字段）。②修复：build_fallback_candidates（首轮全空→二字组/单字二阶段兜底）；_in_scope_hits 严格白名单（只认本 workspace；无字段/None/异 ws 一律丢弃）。③验证：自测 81/81；电池 16/16（13 条直连全中 + 3 条负例全空）。④副作用披露：8765 实例启用 Neo4j，/v1/import/extension 会同步导入（migration.py:80）→ 联调合成数据已入图谱 30 节点/40 边；用户选择'先留着'；清理脚本见 knowledge-agent-service/scripts/cleanup-xiaozhi-test-entities.py（--apply 执行）。⑤电池已加 Neo4j 同步警告；今后联调建议 graph-off 实例。",
+    "timestamp": "2026-09-21T02:55:06.929Z",
+    "tags": [
+      "battery",
+      "context-recall",
+      "deepseek",
+      "memory",
+      "migration",
+      "neo4j"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-21T02:55:06.929Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-21T02:55:06.930Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [
+        "neo4j"
+      ],
+      "patterns": [],
+      "concepts": [
+        "migration"
+      ]
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-21T02:55:06.875Z"
+    }
   }
 ]

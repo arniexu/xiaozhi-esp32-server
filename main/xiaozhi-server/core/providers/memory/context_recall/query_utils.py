@@ -102,3 +102,29 @@ def merge_hit_lists(hit_lists, limit=None):
             if limit is not None and len(merged) >= limit:
                 return merged
     return merged
+
+
+def build_fallback_candidates(query: str, max_candidates: int = MAX_CANDIDATES):
+    """二阶段兑底候选：对多字片段做滑动二字组 + 单字片段（仅在首轮全空时使用）。
+
+    背景（真机电池实测）：
+    - 停用词剔除会把手邻内容字粘连成不存在的字面（"早餐吃"、"开客厅"）；
+    - 内容片段本身较长、或词间有虚词分隔后不连续（"小明喜欢"）——
+    首轮字面 AND 全空时，用二字组做 OR 回退（如 "早餐吃"→ 早餐；"小明喜欢"→ 小明）。
+    """
+    text = (query or "").strip()
+    if not text:
+        return []
+    stripped = _strip_stopwords(text)
+    fragments = CJK_RUN.findall(stripped)
+    candidates = []
+    for fragment in fragments:
+        if len(fragment) >= 3:
+            for index in range(len(fragment) - 1):
+                bigram = fragment[index : index + 2]
+                if bigram not in candidates:
+                    candidates.append(bigram)
+    for fragment in fragments:
+        if len(fragment) == 1 and fragment not in candidates:
+            candidates.append(fragment)
+    return candidates[:max_candidates]
