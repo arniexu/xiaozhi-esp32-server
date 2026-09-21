@@ -1790,5 +1790,65 @@
       "source": "cli",
       "timestamp": "2026-09-21T13:39:58.773Z"
     }
+  },
+  {
+    "id": "d015004e-ac23-4cf9-b28d-998b28fc5d79",
+    "question": "公开仓库有无真实密钥被推送？（我的 4 个提交 vs 历史遗留）（d184e62）",
+    "answer": "①本次 4 个提交（fda9507/4997c1c/923c6e5/8e194c7）逐 diff 扫描 0 命中：仅 requirements.txt、docs/singleton-mode-deploy.md、.continuity/* 与 continuity 生成的 .cursorrules/CLAUDE.md/GEMINI.md；真实运行配置 data/.config.yaml 从未入库（.gitignore:148）。②体检发现历史遗留泄漏（非本次，来自 2025-09-06 的 6cc3874）：homeassistant_config/.storage/auth 含 HA 用户 xuqianjin 的 2 个 refresh token+jwt_key（4×128 字符）与 last_used_ip，auth_provider.homeassistant 含 bcrypt 密码哈希；仓库 visibility=public → 已于 d184e62 从跟踪移除 .storage/、home-assistant.log.1、home-assistant_v2.db、secrets.yaml、main/{manager-api,manager-web}/nohup.out，并补 .gitignore（本机文件保留）。③需用户手工处置：HA 中删除这两个刷新令牌（或改密码）——历史提交仍可见，轮换是唯一补救。④两项已澄清：config.yaml:897 Linkerai access_token 为上游公开测试 token（注释自述）；manager-api application-dev.yml 与上游逐行一致=默认值。",
+    "timestamp": "2026-09-21T14:22:29.866Z",
+    "tags": [
+      "api",
+      "auth",
+      "bcrypt",
+      "deploy",
+      "git",
+      "homeassistant",
+      "security"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-21T14:22:29.866Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-21T14:22:29.866Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [
+        "bcrypt"
+      ],
+      "patterns": [
+        "singleton"
+      ],
+      "concepts": [
+        "api",
+        "storage"
+      ]
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-21T14:22:29.835Z"
+    }
   }
 ]

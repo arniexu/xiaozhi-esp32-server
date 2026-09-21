@@ -5,8 +5,8 @@
 This file contains project context and decisions. AI assistants should read this file for context. MCP tools are an optional enhancement for richer interaction when connected.
 
 ## Project Context
-- **Total Decisions:** 32
-- **Known Topics:** xiaozhi, context-recall, memory, decision, api, python, edge, sqlite, deploy, architecture, single-device, llm, raspberrypi, deepseek, asr
+- **Total Decisions:** 33
+- **Known Topics:** xiaozhi, context-recall, memory, decision, api, python, deploy, edge, sqlite, architecture, single-device, llm, raspberrypi, deepseek, asr
 
 ## Current State
 **Repository:** xiaozhi-esp32-server
@@ -14,11 +14,11 @@ This file contains project context and decisions. AI assistants should read this
 **Branch:** main
 
 **Recent Commits:**
+- `4997c1c chore(continuity): 同步（Pi 依赖核查 + sherpa 钉修复 fda9507 决策落盘）`
+- `fda9507 fix(deps): 修正 sherpa_onnx 钉（1.12.4 不存在于 PyPI → 1.12.40），解除树莓派 pip 安装阻塞；部署手册更正依赖裁剪说明（onnxruntime 自动带入、torch/torchaudio 必须保留）`
 - `890504f chore(continuity): 同步（单例模式启动手册 5bd83e4 决策落盘）`
 - `5bd83e4 docs: 单例模式启动手册（Pi 5 启停/判据/排障）`
 - `9fe98d1 chore(continuity): 记忆质量修复真机复测记录（浏览器直连 8010 全链路）`
-- `e56830e chore(continuity): 同步（记忆质量修复 0dbffb8 决策落盘）`
-- `0dbffb8 feat(memory): 记忆质量修复——逐句语义/实体分析 + 身份框架注入 + 边注入兜底`
 
 **Working Tree:**
 - M .codex/vexp-hint.sh
@@ -62,25 +62,25 @@ Describe how this repository prefers to work with AI assistants.
 ---
 
 ## Recent Decisions
-1. **decision-f56f13ab** (9/21/2026) [deploy, deps]
+1. **decision-a14aea6a** (9/21/2026) [cuda, deploy]
+   - Q: Pi 部署需要安装 CUDA 吗？默认 pip 安装会发生什么？（923c6e5）
+   - A: ①功能上完全不需要：Pi 无 NVIDIA GPU，全链路推理在云端（云端 ASR/LLM + EdgeTTS），VAD 仅 CPU 小张量；CUDA 在 Pi 上装不了也用不上。②但默认安装有坑（新发现）：torch 2.14 起 Linux 轮子（含 aarch64）在元数据里声明 CUDA 依赖（cuda-toolkit[cublas..]==13.0.3、cuda-bindings、nvidia-cudnn-cu13、nccl、nvshmem、cusparselt、triton；marker 仅 platform_system=='Linux'、不限架构）→ 在 Pi 上直接 pip install torch 会静默拉入整条 CUDA 栈：已核 aarch64 轮子合计约 2.5GB（cublas 518MB、cudnn 621MB、cusolver 213MB、cufft 204MB、nccl 206MB、cusparselt 211MB、triton 216MB、cusparse 155MB、curand 59MB、nvrtc 41MB 等），装后更大且无任何用途。③对策（已落文档 923c6e5）：Pi/无卡机先装 CPU 轮子 pip install torch torchaudio --index-url https://download.pytorch....
+
+2. **decision-f56f13ab** (9/21/2026) [deploy, deps]
    - Q: Pi 部署依赖核查：onnxruntime 是否需要手动安装？（fda9507）
    - A: ①不需要手动装：requirements.txt 未显式列出，但 silero_vad==5.1.2 为无条件硬依赖（onnxruntime>=1.16.1），markitdown→magika（Py≥3.10）也要求 → pip install -r requirements.txt 必带；aarch64 轮子覆盖 cp310–cp314（onnxruntime 1.23.2，cp311 约 14.5MB），pip 直装无需 apt/编译。②运行时并不使用：VAD=silero.py 走 torch.hub 本地仓 models/snakers4_silero-vad（.jit 路径，utils_vad.py 仅函数内延迟 import）；ASR=云端流式 → 保留勿删。③硬约束（实测 torch 2.14 源码）：torch.hub.load 校验 hubconf dependencies=['torch','torchaudio']，缺 torchaudio 直接 RuntimeError → torch/torchaudio 均为 SileroVAD 运行时必需；deploy 手册原裁剪建议已更正。④顺带发现并修复部署阻塞：sherpa_onnx==1.12.4 不存在于 PyPI（29 个精确钉中唯一不可解析）→ 改 1.12.40（同线最近；aarch64 cp3...
 
-2. **decision-adc11d03** (9/21/2026) [deploy, docs]
+3. **decision-adc11d03** (9/21/2026) [deploy, docs]
    - Q: 单例模式启动手册落盘并推送 GitHub（5bd83e4）
    - A: ①新增 docs/singleton-mode-start.md：启动前检查（venv/.config.yaml/IP/端口空闲）→ 启动顺序（CR 先、xiaozhi 后；CR 缺席时 xiaozhi 走空记忆降级不阻塞）→ 启停/日志速查表 → 三项成功判据（is-active/端口 8000·8003·8765/日志无 Traceback）→ 设备端联调（≥3 轮触发组织、save 日志 nodes/edges、raw turns 在 data/context_recall）→ 日常运维（linger 核对、备份两处数据目录）→ 验收复跑（3 项）→ 启动故障速查表（端口占用/配置错/找不到 app.py/召回空/时钟 InvalidTimeStamp/ffprobe/代理）→ 开发机差异附录。②docs/singleton-mode-deploy.md header 增加交叉引用（deploy 负责装、start 负责起）。③事实复核：install-singleton-service.sh 仅 enable 不 start（首次须手动）；CR 的 install-user-service.sh 为 enable --now；端口 8000/8003/8765；min_user_turns=3。④推送 origin/main 9fe98d1..5bd83e4；未夹带 ...
 
-3. **decision-17899754** (9/21/2026) [context-recall, identity]
+4. **decision-17899754** (9/21/2026) [context-recall, identity]
    - Q: 记忆质量修复：逐句语义/实体分析两阶段组织 + 身份框架注入 + 边注入（0dbffb8）
    - A: ①问题（真机）：助手即兴扮演人设（自编"台湾女生/现居北京/字节男友"，系统提示中并无此设定）被组织器当知识存储；助手自己的错误陈述再入库（"存在矛盾/未经用户确认"元评论）→ 召回注入后身份混淆、系统词泄漏（"节点上咱俩聊的是北京呢"）。②根因：组织器把助手扮演内容+对记忆的分析评论都写进节点；注入端无身份框架。③修复四层（0dbffb8）：1) 逐句分析（ANALYZE_SYSTEM_PROMPT：每句一条 speaker/about/type/entities/relations/fact/keep；助手扮演一律 keep=false）→ 接地聚合（仅基于 keep=true；任一步失败回退单次旧路径）；2) agent-base-prompt 历史记忆段身份框架（用户=对话者；"助手/小智"条目=你自己之前的角色扮演；冲突以用户当前说法为准；禁提"记忆/节点"）；3) _format_hits 丢弃"未经用户确认/属于单方面记忆/存在矛盾"旧节点（存量防御）；4) organizer.edges_to_units 边→文本单元（主体 —REL→ 客体；确定性 ID 幂等）解决 graph-off（Pi）丢边问题，inject_edges 默认开。④澄清："上海"是用户真说过（"一个人在上海难哦"）；"台湾/北京/男友"是模型自编扮演。旧污染节点 additive 无法...
 
-4. **decision-a7a542a3** (9/21/2026) [deploy, edge-tts]
+5. **decision-a7a542a3** (9/21/2026) [deploy, edge-tts]
    - Q: 公司网络 wss 链路修复集（配置化）：代理/版本/ffprobe（27f1303）
    - A: ①ASR/TTS 的 wss 直连被公司网墙：websockets 14.2 无代理支持、edge-tts 7.0.0 直连超时/403；DeepSeek（httpx 自动代理）正常。②方案：provider 增加 proxy 配置项（data/.config.yaml：ASR.AliyunStreamASR.proxy / TTS.EdgeTTS.proxy；树莓派部署删除即直连；代码含 websockets<15 的降级警告）。③依赖：websockets 升 16.1.1（>=15 才有 proxy 参数；cozepy 钉<15 冲突已在 requirements 注释）；edge-tts 升 7.2.8（7.0.0 被 MS 403）；④ffprobe 缺失（pydub 音频转换）→ johnvansickle 静态包 ffprobe 放 ~/.local/bin（无需 sudo）；⑤部署文档补'开发机（公司网络）备注'（16ed96d）。
-
-5. **decision-d33edb64** (9/21/2026) [e2e, memory]
-   - Q: 语音记忆闭环真机验证通过：真实对话 7 节点/3 边 + 召回命中（泰安）
-   - A: ①用户经 test_page 语音/文本对话（自称山东泰安、聊'字节跳动男友'等人设话题）→ 断开（VS Code 转发链路不传关闭信号，服务端约 3 分钟空闲超时才感知并保存）；②保存：快照推送成功 imported_memories=7 nodes=7 edges=3 fallback=False（真实 DeepSeek 组织）；本地 turns.jsonl 8 行；CR 26 条；③召回验证：'我是哪里人？'（provider 路径）→ 命中「用户：用户是山东泰安人」+ 相关节点；'字节跳动'3 条；注意：直查 CR 不拆词会 0 命中（勿混淆）；④盲区：'老家/在哪长大'等近义说法不命中（字面门限制，已记 CR 待办）；⑤过程发现并修复：共享 provider 角色竞态（并发探针把用户首段会话存到探针角色）→ 保存前重绑角色（91a1073）；召回测试会话也已自动保存（turns 14 行、CR 30 条）。
 
 ---
 
