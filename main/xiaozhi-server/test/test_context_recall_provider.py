@@ -70,6 +70,7 @@ from core.providers.memory.context_recall import storage as storage_mod  # noqa:
 from core.providers.memory.context_recall.context_recall import MemoryProvider  # noqa: E402
 from core.providers.memory.context_recall.cr_client import CRClient  # noqa: E402
 from core.providers.memory.context_recall.query_utils import (  # noqa: E402
+    build_fallback_candidates,
     build_query_candidates,
     merge_hit_lists,
 )
@@ -532,14 +533,16 @@ def test_query_memory():
                 "summary": "用户偏好暖光",
                 "resolution": "客厅使用暖光照明",
                 "score": 0.9,
+                "workspace_id": "xiaozhi",
             },
             {
                 "id": "k1",
                 "summary": "用户偏好暖光",
                 "resolution": "客厅使用暖光照明",
+                "workspace_id": "xiaozhi",
             },
-            {"id": "k2", "summary": "用户儿子叫小明", "resolution": ""},
-            {"id": "k3", "summary": "", "resolution": ""},
+            {"id": "k2", "summary": "用户儿子叫小明", "resolution": "", "workspace_id": "xiaozhi"},
+            {"id": "k3", "summary": "", "resolution": "", "workspace_id": "xiaozhi"},
         ]
     )
     provider.init_memory("dev-01#role-a", None)
@@ -585,7 +588,12 @@ def test_query_memory():
     many = MemoryProvider(provider_config(limit=20), None)
     many.client = FakeCRClient(
         search_hits=[
-            {"id": f"k{i}", "summary": "S" * 100, "resolution": "R" * 200}
+            {
+                "id": f"k{i}",
+                "summary": "S" * 100,
+                "resolution": "R" * 200,
+                "workspace_id": "xiaozhi",
+            }
             for i in range(20)
         ]
     )
@@ -601,7 +609,8 @@ def test_query_memory():
     limited = MemoryProvider(provider_config(limit=2), None)
     limited.client = FakeCRClient(
         search_hits=[
-            {"id": f"k{i}", "summary": f"s{i}", "resolution": "r"} for i in range(5)
+            {"id": f"k{i}", "summary": f"s{i}", "resolution": "r", "workspace_id": "xiaozhi"}
+            for i in range(5)
         ]
     )
     limited.init_memory("dev-01", None)
@@ -897,6 +906,20 @@ def test_query_candidates():
     )
     limited = merge_hit_lists([[{"id": "a"}, {"id": "b"}, {"id": "c"}]], limit=2)
     check("11.9 merge：limit 截断", len(limited) == 2)
+    check(
+        "11.10 二阶段兜底：'早餐吃' 拆出二字组（修停用词粘字）",
+        build_fallback_candidates("我早餐吃什么？") == ["早餐", "餐吃"],
+        f"{build_fallback_candidates('我早餐吃什么？')}",
+    )
+    check(
+        "11.11 二阶段兜底：无多字片段时返回单字（'灯在哪' → 灯）",
+        build_fallback_candidates("灯在哪") == ["灯"],
+        f"{build_fallback_candidates('灯在哪')}",
+    )
+    check(
+        "11.12 二阶段兜底：纯 ASCII → []",
+        build_fallback_candidates("wifi down") == [],
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -922,7 +945,12 @@ class RouteFakeCRClient(FakeCRClient):
 
 
 def test_query_multi_route():
-    hit = {"id": "k1", "summary": "小明", "resolution": "用户的儿子，今年五岁"}
+    hit = {
+        "id": "k1",
+        "summary": "小明",
+        "resolution": "用户的儿子，今年五岁",
+        "workspace_id": "xiaozhi",
+    }
 
     provider = MemoryProvider(provider_config(), None)
     provider.client = RouteFakeCRClient({"儿子": [hit]})
@@ -943,8 +971,10 @@ def test_query_multi_route():
     provider2 = MemoryProvider(provider_config(), None)
     provider2.client = RouteFakeCRClient(
         {
-            "我儿子叫什么名字": [{"id": "raw", "summary": "RAW", "resolution": "r0"}],
-            "儿子": [{"id": "k1", "summary": "小明", "resolution": "r1"}],
+            "我儿子叫什么名字": [
+                {"id": "raw", "summary": "RAW", "resolution": "r0", "workspace_id": "xiaozhi"}
+            ],
+            "儿子": [{"id": "k1", "summary": "小明", "resolution": "r1", "workspace_id": "xiaozhi"}],
         }
     )
     provider2.init_memory("dev-01", None)
@@ -964,6 +994,67 @@ def test_query_multi_route():
     )
 
 
+def test_query_two_phase_and_scope():
+    provider = MemoryProvider(provider_config(), None)
+    provider.client = RouteFakeCRClient(
+        {
+            "早餐": [
+                {"id": "k1", "summary": "早餐偏好", "resolution": "豆浆油条", "workspace_id": "xiaozhi"}
+            ]
+        }
+    )
+    provider.init_memory("dev-01", None)
+    out = asyncio.run(provider.query_memory("我早餐吃什么？"))
+    queries = [call["query"] for call in provider.client.search_calls]
+    check(
+        "12.5 首轮全空 → 二阶段二字组兜底命中",
+        out.startswith("- 早餐偏好：豆浆油条") and "早餐" in queries,
+        f"{queries}",
+    )
+
+    provider2 = MemoryProvider(provider_config(), None)
+    provider2.client = RouteFakeCRClient(
+        {"儿子": [{"id": "k2", "summary": "小明", "resolution": "五岁", "workspace_id": "xiaozhi"}]}
+    )
+    provider2.init_memory("dev-01", None)
+    asyncio.run(provider2.query_memory("我儿子叫什么名字?"))
+    queries2 = [call["query"] for call in provider2.client.search_calls]
+    check(
+        "12.6 首轮命中 → 不再触发二阶段（无多余检索）",
+        queries2 == ["我儿子叫什么名字?", "儿子", "名字"],
+        f"{queries2}",
+    )
+
+    provider3 = MemoryProvider(provider_config(), None)
+    provider3.client = RouteFakeCRClient(
+        {
+            "x": [
+                {"id": "a", "summary": "A", "resolution": "ra", "workspace_id": "xiaozhi"},
+                {"id": "b", "summary": "B", "resolution": "rb", "workspace_id": None},
+                {"id": "c", "summary": "C", "resolution": "rc", "workspace_id": "other"},
+                {"id": "d", "summary": "D", "resolution": "rd"},
+            ]
+        }
+    )
+    provider3.init_memory("dev-01", None)
+    out3 = asyncio.run(provider3.query_memory("x"))
+    check(
+        "12.7 workspace 过滤（严格白名单）：仅保留本 ws，丢 None/异 ws/无字段项",
+        out3 == "- A：ra",
+        repr(out3),
+    )
+
+    provider4 = MemoryProvider(provider_config(), None)
+    provider4.client = RouteFakeCRClient(
+        {"今天天气怎么样？": [{"id": "p", "summary": "P1", "resolution": "r", "workspace_id": None}]}
+    )
+    provider4.init_memory("dev-01", None)
+    check(
+        "12.8 污染单元（ws=None）被过滤 → ''",
+        asyncio.run(provider4.query_memory("今天天气怎么样？")) == "",
+    )
+
+
 def main():
     print("=" * 60)
     print("context_recall provider 自跑测试（无 pytest / 无网络 / 无真实 LLM）")
@@ -980,6 +1071,7 @@ def main():
     run("10 init_memory", test_init_memory)
     run("11 查询拆词（query_utils）", test_query_candidates)
     run("12 多路检索合并", test_query_multi_route)
+    run("13 二阶段兜底与 workspace 过滤", test_query_two_phase_and_scope)
 
     passed = sum(1 for _, ok in RESULTS if ok)
     total = len(RESULTS)

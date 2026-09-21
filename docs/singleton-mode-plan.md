@@ -114,11 +114,12 @@ Pi 上两个 user 级 systemd 服务：
 **链路结论**：组织/导入真机通过（真实 DeepSeek：nodes=5、edges=2、fallback=False）；整句问句召回经增强后全部命中。
 
 **发现**：
-1. CR 词法门对 CJK 是"连续子串 AND"：查询每个连续片段必须逐字出现——`儿子` 命中、`我儿子叫什么名字` 必漏。
+1. CR 词法门对 CJK 是"连续子串 AND"：查询每个连续片段必须逐字出现——`儿子` 命中、`我儿子叫什么名字` 必漏；停用词剔除还会把手邻内容字粘连成不存在字面（"早餐吃"）。
 2. 语义通道要求调用方随请求携带 `embedding`（`source_kind='knowledge'`）；xiaozhi 侧无嵌入器 → 实际不参与。
 3. `workspace_id=''` 单元全库参与检索（`memory_store._match` 显式包含）——单字候选"光"曾把 continuity 历史决策拉进客厅灯检索。
+4. graph 通道返回的图实体**无 workspace 字段**（实例启用 Neo4j 时其它项目实体进入检索，实测"今天天气"拉进 P1 缺陷决策）；且该实例 `/v1/import/extension` 会把导入同步进 Neo4j（联调合成数据已入图谱 30 节点/40 边，用户决定暂留；清理脚本见 knowledge-agent-service `scripts/cleanup-xiaozhi-test-entities.py`，`--apply` 执行）。
 
-**处置（xiaozhi 侧已实现）**：`query_utils.py` 拆词（停用词剔除、多字片段优先、单字仅兜底）+ 多路并行检索 + 按路序合并去重；`query_memory` 接入；自测 74/74；真机三条整句问句全部命中且无噪声。
+**处置（xiaozhi 侧已实现）**：两阶段检索（拆词多路 + 二字组/单字兜底）+ **严格 workspace 白名单**（只认本 workspace；无字段/空值/异 ws 一律丢弃）+ 按路序合并去重；自测 81/81；真机电池 16/16（13 条整句问句全部**直连命中**、3 条负例全部正确返回空）。
 
 **CR 侧待办**（详见 knowledge-agent-service `docs/cjk-recall-todo.md`）：CJK bigram OR 回退；空 workspace 严格隔离开关；memory 单元向量通道；跨会话近义节点去重。
 

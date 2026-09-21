@@ -23,7 +23,11 @@ from datetime import datetime
 from ..base import MemoryProviderBase, logger
 from .cr_client import CRClient
 from .organizer import fallback_minimal, organize
-from .query_utils import build_query_candidates, merge_hit_lists
+from .query_utils import (
+    build_fallback_candidates,
+    build_query_candidates,
+    merge_hit_lists,
+)
 from .snapshot import (
     build_session,
     build_snapshot,
@@ -133,28 +137,60 @@ class MemoryProvider(MemoryProviderBase):
     async def query_memory(self, query: str) -> str:
         """检索记忆并格式化为注入 prompt 的短文本；失败/空结果返回 ""。
 
-        多路检索（query_utils）：原文 + 拆词候选并行查询后合并去重，模拟 OR 语义。
-        背景：CR 词法门对 CJK 是"连续子串 AND"，整句提问必然漏（真机联调实测）。
+        两阶段检索（query_utils）：首轮"原文 + 拆词候选"；全空时用二字组/单字
+        兑底再搜一轮，模拟 OR 语义。背景：CR 词法门对 CJK 是"连续子串 AND"
+        （整句必漏，真机实测）；停用词剔除还会把内容字粘连成不存在的字面。
+        命中还要过 workspace 过滤：CR 会把 ws='' 单元并入任意检索（实测噪声）。
         """
         if not self.enabled or not query:
             return ""
         try:
-            candidates = build_query_candidates(query)
-            results = await asyncio.gather(
-                *(
-                    self.client.search(
-                        candidate, self.workspace_id, self.limit, self.min_similarity
-                    )
-                    for candidate in candidates
-                ),
-                return_exceptions=True,
-            )
-            hits = merge_hit_lists(
-                [item for item in results if isinstance(item, list)], self.limit
-            )
+            hits = await self._search_candidates(build_query_candidates(query))
+            if not hits:
+                fallback = build_fallback_candidates(query)
+                if fallback:
+                    hits = await self._search_candidates(fallback)
         except Exception as e:  # noqa: BLE001 - 检索异常必须降级为空记忆
             logger.bind(tag=TAG).debug(f"记忆检索异常（降级为空记忆）: {e}")
             return ""
+        try:
+            return self._format_hits(hits)
+        except Exception as e:  # noqa: BLE001 - 格式化异常同样降级
+            logger.bind(tag=TAG).debug(f"记忆格式化异常（降级为空记忆）: {e}")
+            return ""
+
+    async def _search_candidates(self, candidates):
+        """并行检索一组候选并合并（按路序去重 → 本 workspace 过滤 → 限量）。"""
+        results = await asyncio.gather(
+            *(
+                self.client.search(
+                    candidate, self.workspace_id, self.limit, self.min_similarity
+                )
+                for candidate in candidates
+            ),
+            return_exceptions=True,
+        )
+        merged = merge_hit_lists([item for item in results if isinstance(item, list)])
+        return self._in_scope_hits(merged)[: self.limit]
+
+    def _in_scope_hits(self, hits):
+        """只保留**声明了本 workspace** 的命中（严格白名单）。
+
+        实测噪声来源（真机电池）：
+        - CR 把 ws='' 的单元并入任意 workspace 检索（memory_store._match 显式包含）；
+        - graph 通道返回的图实体**没有 workspace 字段**（服务端接了 Neo4j 时，
+          其它项目的历史决策会被带进来）。
+        单设备场景两者都是噪声 → 只认 workspace_id 等于本 workspace 的条目；
+        无字段/空值/异 workspace 一律丢弃。
+        """
+        scoped = []
+        for hit in hits or []:
+            if not isinstance(hit, dict):
+                continue
+            if str(hit.get("workspace_id") or "") != self.workspace_id:
+                continue
+            scoped.append(hit)
+        return scoped
         try:
             return self._format_hits(hits)
         except Exception as e:  # noqa: BLE001 - 格式化异常同样降级
