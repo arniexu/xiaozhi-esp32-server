@@ -5,8 +5,8 @@
 This file contains project context and decisions. AI assistants should read this file for context. MCP tools are an optional enhancement for richer interaction when connected.
 
 ## Project Context
-- **Total Decisions:** 29
-- **Known Topics:** xiaozhi, context-recall, decision, memory, api, python, edge, sqlite, architecture, single-device, llm, deploy, deepseek, raspberrypi, asr
+- **Total Decisions:** 30
+- **Known Topics:** xiaozhi, context-recall, memory, decision, api, python, edge, sqlite, architecture, single-device, llm, deploy, deepseek, raspberrypi, asr
 
 ## Current State
 **Repository:** xiaozhi-esp32-server
@@ -14,13 +14,14 @@ This file contains project context and decisions. AI assistants should read this
 **Branch:** main
 
 **Recent Commits:**
+- `2beedaa chore(continuity): 同步（语音闭环 + 公司网络修复集）`
+- `16ed96d docs: 开发机（公司网络）联调备注（代理/版本/ffprobe/时钟/转发超时）`
+- `91a1073 fix(memory): 保存前重绑连接角色（并发连接角色竞态，实测踩坑）`
+- `27f1303 feat(providers): ASR/TTS wss 支持 HTTP 代理配置项（公司网络联调）+ 依赖修订`
 - `ae4a595 chore(continuity): 会话暂停点同步（语音测试待端口决策）`
-- `64a955e chore(continuity): 同步自动生成文件（收口核对）`
-- `91f751a chore(continuity): 同步（标准语义化方向）`
-- `9c01688 docs: 确认 CR 侧标准语义化方向（§9）`
-- `03558f6 chore(continuity): 同步自动生成文件（标准姿势对照）`
 
 **Working Tree:**
+- M .continuity/SESSION_NOTES.md
 - M .continuity/decisions.json
 - M .continuity/decisions.jsonl
 - M .cursorrules
@@ -61,25 +62,25 @@ Describe how this repository prefers to work with AI assistants.
 ---
 
 ## Recent Decisions
-1. **decision-a7a542a3** (9/21/2026) [deploy, edge-tts]
+1. **decision-17899754** (9/21/2026) [context-recall, identity]
+   - Q: 记忆质量修复：逐句语义/实体分析两阶段组织 + 身份框架注入 + 边注入（0dbffb8）
+   - A: ①问题（真机）：助手即兴扮演人设（自编"台湾女生/现居北京/字节男友"，系统提示中并无此设定）被组织器当知识存储；助手自己的错误陈述再入库（"存在矛盾/未经用户确认"元评论）→ 召回注入后身份混淆、系统词泄漏（"节点上咱俩聊的是北京呢"）。②根因：组织器把助手扮演内容+对记忆的分析评论都写进节点；注入端无身份框架。③修复四层（0dbffb8）：1) 逐句分析（ANALYZE_SYSTEM_PROMPT：每句一条 speaker/about/type/entities/relations/fact/keep；助手扮演一律 keep=false）→ 接地聚合（仅基于 keep=true；任一步失败回退单次旧路径）；2) agent-base-prompt 历史记忆段身份框架（用户=对话者；"助手/小智"条目=你自己之前的角色扮演；冲突以用户当前说法为准；禁提"记忆/节点"）；3) _format_hits 丢弃"未经用户确认/属于单方面记忆/存在矛盾"旧节点（存量防御）；4) organizer.edges_to_units 边→文本单元（主体 —REL→ 客体；确定性 ID 幂等）解决 graph-off（Pi）丢边问题，inject_edges 默认开。④澄清："上海"是用户真说过（"一个人在上海难哦"）；"台湾/北京/男友"是模型自编扮演。旧污染节点 additive 无法...
+
+2. **decision-a7a542a3** (9/21/2026) [deploy, edge-tts]
    - Q: 公司网络 wss 链路修复集（配置化）：代理/版本/ffprobe（27f1303）
    - A: ①ASR/TTS 的 wss 直连被公司网墙：websockets 14.2 无代理支持、edge-tts 7.0.0 直连超时/403；DeepSeek（httpx 自动代理）正常。②方案：provider 增加 proxy 配置项（data/.config.yaml：ASR.AliyunStreamASR.proxy / TTS.EdgeTTS.proxy；树莓派部署删除即直连；代码含 websockets<15 的降级警告）。③依赖：websockets 升 16.1.1（>=15 才有 proxy 参数；cozepy 钉<15 冲突已在 requirements 注释）；edge-tts 升 7.2.8（7.0.0 被 MS 403）；④ffprobe 缺失（pydub 音频转换）→ johnvansickle 静态包 ffprobe 放 ~/.local/bin（无需 sudo）；⑤部署文档补'开发机（公司网络）备注'（16ed96d）。
 
-2. **decision-d33edb64** (9/21/2026) [e2e, memory]
+3. **decision-d33edb64** (9/21/2026) [e2e, memory]
    - Q: 语音记忆闭环真机验证通过：真实对话 7 节点/3 边 + 召回命中（泰安）
    - A: ①用户经 test_page 语音/文本对话（自称山东泰安、聊'字节跳动男友'等人设话题）→ 断开（VS Code 转发链路不传关闭信号，服务端约 3 分钟空闲超时才感知并保存）；②保存：快照推送成功 imported_memories=7 nodes=7 edges=3 fallback=False（真实 DeepSeek 组织）；本地 turns.jsonl 8 行；CR 26 条；③召回验证：'我是哪里人？'（provider 路径）→ 命中「用户：用户是山东泰安人」+ 相关节点；'字节跳动'3 条；注意：直查 CR 不拆词会 0 命中（勿混淆）；④盲区：'老家/在哪长大'等近义说法不命中（字面门限制，已记 CR 待办）；⑤过程发现并修复：共享 provider 角色竞态（并发探针把用户首段会话存到探针角色）→ 保存前重绑角色（91a1073）；召回测试会话也已自动保存（turns 14 行、CR 30 条）。
 
-3. **decision-d2e68bf7** (9/21/2026) [aliyun, asr]
+4. **decision-d2e68bf7** (9/21/2026) [aliyun, asr]
    - Q: ASR 启动失败根因＝本机时钟慢 27 分 35 秒（阿里云 InvalidTimeStamp.Expired）
    - A: ①现象：app.py 启动时 AliyunStreamASR._refresh_token 报'无法获取有效的访问Token'。②诊断（/tmp/aliyun_token_debug.py）：代理路径正常（http_proxy 已被 requests 自动采用，请求到达阿里云），阿里云返回 HTTP 400 Code=InvalidTimeStamp.Expired——签名通过、仅时间戳过期（容忍±15min）。③验证：本机 UTC 04:56:14 vs 阿里云/百度 Date 头 05:23:49/50 GMT → 慢 27 分 35 秒；System clock synchronized: no（NTP active 但未同步，可能 UDP123 被公司网阻断）。④处置：需用户以 sudo 修复（重启 timesyncd 或按服务器时间手动 date -s）；我不便代跑。⑤附带：开发机联调配置已切 8010 端口 + CR 指向 graph-off 8876（data/.config.yaml，已备份原 vendor 配置逻辑不变）。⑥备选绕过：NLS 控制台 24h AccessToken 走 token 字段可绕开 CreateToken 的时钟依赖。
 
-4. **decision-387916d1** (9/21/2026) [context-recall, proposal]
+5. **decision-387916d1** (9/21/2026) [context-recall, proposal]
    - Q: 方向确认：CR 侧标准语义化（flag 兼容演进），客户端不强背永久 workaround
    - A: ①缘由：xiaozhi 客户端的拆词/白名单/二阶段本质是 CR 语义不标准的补偿；用户提出修在源头，避免长期分叉。②提案（knowledge-agent-service docs/cjk-recall-todo.md）：P1 strict_workspace 参数（默认 False 保 extension 行为；True 时排除 ws='' 全局桶）+ scope_match 诚实化（exact+global / global_included 计数）；P2 CJK 通道与 ASCII 对齐（bigram OR 回退，按 _search_once 既有 AND+OR 并联哲学，只补 CJK 缺口）；P3 include_graph 开关（默认 True 兼容；xiaozhi 设 False）；P4 更新/更正 supersede；附兼容矩阵。③策略：新参数保默认、调用方 opt-in、大版本再翻默认；xiaozhi 增强退为防御层，CR 修复后用 battery/hard 回归验证可简化。④提交：knowledge 提案 + xiaozhi 方案文档方向确认。
-
-5. **decision-3f7b2ffd** (9/21/2026) [context-recall, deepseek]
-   - Q: 加强版召回测试 v3（hard）通过：26 条矩阵 0 失败 / 噪声 0 / p95 259ms
-   - A: ①脚本 test_context_recall_live_hard.py：3 段会话（基础/设备/更正+杂音）+ 26 条查询（正例/负例/数字变体/短词）+ 噪声关键词 + 陈旧值检测 + 稳定性 3×3 + 快照审计（设备杂音/事实覆盖）+ 时延统计；内置安全阀（目标启用 Neo4j 则拒跑，防再写用户图谱）。②对 graph-off 实例 8876 实测：直连 18/18、负例 4/4、噪声行 0、p95 259ms、设备杂音未入库、10 组事实全覆盖、稳定性一致。③唯一残留：更新后旧节点并存（爬山↔游泳 1 例实测）→ CR 待办 #4（supersede/近似去重）优先级上升（todo 文档已附加测证据）。④提交：xiaozhi（hard 脚本+方案文档§9）、knowledge-agent-service（todo 附录）。
 
 ---
 
