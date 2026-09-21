@@ -123,6 +123,8 @@ Pi 上两个 user 级 systemd 服务：
 
 **加强版验证（`test/test_context_recall_live_hard.py`，对 graph-off 实例 8876）**：3 段会话（含更正/变更/设备杂音）+ 26 条查询矩阵——直连命中 18/18、负例 4/4、**噪声行 0**、时延 p95 259ms、设备杂音未入库、10 组事实全覆盖、稳定性 3×3 一致；唯一残留：**更新后旧节点并存**（爬山↔游泳实测 1 例），注入时可能新旧同现 → CR 待办 #4（supersede/近似去重）优先级上升。脚本内置安全阀：目标启用 Neo4j 时默认拒跑（防再写用户图谱）。
 
+**标准姿势对照（extension vs xiaozhi，2026-09-21 读码判明）**：接口同为 `/v1/search`。extension 的完整姿势 = ①每次携带客户端 `embed(query)`（`vector.ts`：FNV-1a 256 维签名词袋；词=普通词+CJK 单字+双字；NFKC/小写）+ 导入时同样生成向量；②不传 `scope_fallback`（默认 `global` 跨 scope 兜底）+ `workspace_ids` 别名集；③客户端**加权重排**（`rankRetrievalResults`：semantic 1.0 / lexical 1.2 / graph 0.8，graph 要求词面重叠）——即"客户端增强"本身是标准架构的一部分。xiaozhi 偏离：①未带 embedding（semantic 恒空；**可选对齐项**：Python 复刻 embed 约 40 行 + 导入/查询接线 + 测试）；②`scope_fallback=none` + 严格白名单（单设备隔离，实测需要）；③增强更激进（拆词/二阶段兜底）。
+
 **CR 侧待办**（详见 knowledge-agent-service `docs/cjk-recall-todo.md`）：CJK bigram OR 回退；空 workspace 严格隔离开关；memory 单元向量通道；跨会话近义节点去重。
 
 ---
