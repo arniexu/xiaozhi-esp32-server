@@ -1850,5 +1850,50 @@
       "source": "cli",
       "timestamp": "2026-09-21T14:22:29.835Z"
     }
+  },
+  {
+    "id": "2fbfb93e-5c08-45c6-9a2b-001835983fdc",
+    "question": "树莓派 5 安装成功（里程碑 2026-09-21）——状态与后续验收清单？",
+    "answer": "用户报告 xiaozhi-server 已在 Pi 5 安装成功。SESSION_NOTES 已更新：Pi 从'待硬件'转为'已安装，待验收'。验收清单：① run-acceptance.sh 期望 3/3（compileall / provider 60/60 / 冒烟 7/7）；② 三项启动判据（systemd is-active；端口 8000/8003/8765；日志无 Traceback）；③ 依赖体检（torch 应为 CPU 轮子如 2.14.0+cpu、不应出现 nvidia 目录、sherpa_onnx==1.12.40）；④ 设备端 ≥3 轮对话→断开重连→召回验证；⑤ 组织质量观察需智谱 LLM key。本轮修复链（fda9507 sherpa 钉 / 923c6e5 CPU torch 指引）是否已被 Pi 安装路径采用待确认。",
+    "timestamp": "2026-09-21T20:25:33.985Z",
+    "tags": [
+      "acceptance",
+      "deploy",
+      "milestone",
+      "pi"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-21T20:25:33.985Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-21T20:25:33.986Z",
+        "action": "created"
+      }
+    ],
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-21T20:25:33.951Z"
+    }
   }
 ]

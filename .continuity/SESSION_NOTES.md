@@ -8,6 +8,7 @@
 - **下一步（明日）**：W1 = Phase 0 联调（CR 一次性测试实例 + 伪造快照全链路：导入/命中/幂等/隔离/降级）；可并行 W3（organizer 移植）。
 - **阻塞/排除**：Pi 部署（等硬件，已排除）；组织联调需智谱 LLM key（免费款，可先注册）。
 - **工期口径**：软件侧剩余 3–5 个工作日（AI 加速），约 1 周内闭环。
+- **2026-09-21 里程碑**：树莓派 5 安装成功（xiaozhi-server 已就位）——待运行验收（run-acceptance 3/3 + 三项判据）与设备端联调；依赖体检项=torch 应为 CPU 轮子（如 2.14.0+cpu）、不得出现 nvidia 目录（CUDA 陷阱）、sherpa_onnx 应为 1.12.40。
 
 ## 💡 Key Decisions Made
 - 2026-09-20：单例模式=最大节省为核心；角色固化在边缘（本地 config），不部署 manager 栈。decision-1cdd4916（保留 manager-api、角色服务器下发）仅适用于完整模式
@@ -38,7 +39,7 @@
 - 语音记忆闭环真机验证通过（真实对话→7节点/3边→召回命中泰安）；公司网络修复集已提交（27f1303 代理配置化/91a1073 角色重绑/16ed96d 文档）并重启生效。剩余：最后一轮自由使用验证（断开后等约3分钟保存）；Pi 部署待硬件；CR 待办（近义召回/去重等）。
 - 召回增强：xiaozhi 侧 embedding 通道（复刻 extension embed → 语义通道生效，修'名字/近义'盲区）
 - CR 侧标准语义化 P1-P4（strict_workspace / CJK OR 回退 / include_graph / supersede）
-- Pi 硬件到位后按 docs/singleton-mode-start.md 执行首次启动（CR 先、xiaozhi 后）+ 三项判据核对 + 设备端 ≥3 轮联调
+- Pi 5 安装完成（2026-09-21）→ 执行：① `bash main/xiaozhi-server/scripts/run-acceptance.sh`（期望 3/3）；② 三项判据（is-active / 端口 8000·8003·8765 / 日志无 Traceback）；③ 依赖体检（torch=+cpu 版、sherpa_onnx=1.12.40、无 nvidia 目录）；④ 设备端 ≥3 轮→断开重连→召回；⑤ 组织质量观察（需智谱 key）
 
 ## 📝 Open Questions
 <!-- No entries yet -->
