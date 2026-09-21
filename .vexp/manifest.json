@@ -1,7 +1,7 @@
 {
   "file_hashes": {
-    "CLAUDE.md": "e3a0af1222a46994c7bfc8d766c7df1ba7326e05859a5a94a0e3149b436b91bb",
-    "GEMINI.md": "e3a0af1222a46994c7bfc8d766c7df1ba7326e05859a5a94a0e3149b436b91bb",
+    "CLAUDE.md": "54c4b9c743075456eb7b77625b0e40b27ecdba3862b6c57bed525e28dd237aa5",
+    "GEMINI.md": "e48cd5f2d535d087ab9f91c45582514fa4623b32d72c884081bd6ea9b7744262",
     "README_en.md": "5f92bec0a465b5a5974e39b6324c8440a668b7e074f8a1928c45c2ae543a1a52",
     "main/README_en.md": "1f8596a11347cbfa74aafaa2c2a0e62e992279fa74692f0e1813db2473153a31",
     "main/manager-api/Dockerfile": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
@@ -349,7 +349,7 @@
     "main/xiaozhi-server/core/api/ota_handler.py": "34c27a91fe2327ed2aec3aefa033dc4d6ea0b8a92ad8b212940e4c4ae56ef1c0",
     "main/xiaozhi-server/core/api/vision_handler.py": "2b100d3b84ae35127b18cb366b9bfe6ebd78fee63893e1654b5882c90d41b382",
     "main/xiaozhi-server/core/auth.py": "6f119191aa6ff251c9f5d3cf29b95735b552737df3e9b7eb617e8a4ebd4c6105",
-    "main/xiaozhi-server/core/connection.py": "dc3feabb9144e225cbf3e248c6716a23f98e254e8cad331f66302c37a0ea2322",
+    "main/xiaozhi-server/core/connection.py": "5e105c948e353d798d0cb097c1c8804cd6eb3e263125ecef1d72f8a705279c44",
     "main/xiaozhi-server/core/handle/abortHandle.py": "b21a9db1477d1050bfb7d2528010ccea2c9d0a3087c60df1476fff918e87775d",
     "main/xiaozhi-server/core/handle/faceHandle.py": "b804ade9b7265b35d4099a31482d0e03326182caa37798659b305ffb7fcb64ef",
     "main/xiaozhi-server/core/handle/helloHandle.py": "cdd5e3652b78d08275d5c927791727c2e03a000cb025e07dfe1555f38dedb85c",
@@ -480,8 +480,8 @@
     "main/xiaozhi-server/test_face_direct.py": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
     "main/xiaozhi-server/test_websocket_format.py": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"
   },
-  "indexed_at_commit": "c9a1b5556bc74f18dec30d99ae5d6ecb0fce72ed",
-  "indexed_at_timestamp": "2026-09-21T01:02:02.045858716+00:00",
+  "indexed_at_commit": "54ad9d2b2dcba95420d140bc32cfb1e9fa906a5d",
+  "indexed_at_timestamp": "2026-09-21T20:22:53.829903829+00:00",
   "languages": {
     "css": {
       "calls": 0,
@@ -497,10 +497,10 @@
     },
     "markdown": {
       "calls": 0,
-      "nodes": 116
+      "nodes": 118
     },
     "python": {
-      "calls": 486,
+      "calls": 504,
       "nodes": 772
     },
     "sql": {
@@ -514,9 +514,9 @@
   },
   "schema_version": 3,
   "stats": {
-    "total_edges": 5025,
+    "total_edges": 5045,
     "total_files": 479,
-    "total_nodes": 2005
+    "total_nodes": 2007
   },
   "vexp_version": "3.2.2"
 }
