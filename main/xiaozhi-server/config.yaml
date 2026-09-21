@@ -248,6 +248,19 @@ Memory:
     # https://app.mem0.ai/dashboard/api-keys
     # 每月有1000次免费调用
     api_key: 你的mem0ai api key
+  context_recall:
+    # Context Recall 本地记忆服务（设计文档 docs/singleton-mode-plan.md §4）
+    # service_url 留空 = 禁用该 provider（查询返回空、不推送）
+    type: context_recall
+    service_url: http://127.0.0.1:8765
+    workspace_id: xiaozhi
+    # 勿改：默认 global 会跨 workspace 合并召回（W1 实测）
+    scope_fallback: "none"
+    min_similarity: 0.35
+    limit: 6
+    timeout: 2.5
+    # 单次会话用户发言少于此轮数时不组织知识（仍写本地 raw turns）
+    min_user_turns: 3
   nomem:
     # 不想使用记忆功能，可以使用nomem
     type: nomem
