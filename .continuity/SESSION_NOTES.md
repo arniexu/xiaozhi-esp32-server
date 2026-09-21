@@ -30,10 +30,11 @@
 - 召回增强收尾（f82b03a）：两阶段检索 + 严格 workspace 白名单；电池 16/16、自测 81/81 全绿。图谱副作用：8765（Neo4j on）同步了测试实体 30 节点/40 边，用户选择暂留，清理脚本就绪（knowledge-agent-service/scripts/cleanup-xiaozhi-test-entities.py --apply）。待办：真机语音联调（建议 graph-off 实例）；Pi 部署待硬件。
 - 加强版测试 hard v3 通过（d19f590）：26 条矩阵（含更新/更正/设备杂音/负例）0 失败、噪声 0、p95 259ms、稳定性 3×3 一致；唯一残留=更新旧值并存（CR 待办 #4 升级，证据 f46bc15）。后续：真机语音全链路（需设备）、长会话节点上限压力测试。
 - 新工作流确立：CR 侧标准语义化（P1 strict_workspace / P2 CJK OR 回退 / P3 include_graph / P4 supersede；flag 兼容演进）——提案在 knowledge-agent-service docs/cjk-recall-todo.md，xiaozhi 客户端增强退为防御层。待办：实现 CR 侧（含 tests 回归 + xiaozhi battery/hard 双验证）；真机语音联调（graph-off 实例）；Pi 部署待硬件。
+- 暂停点（等下午继续）：语音端到端测试路径已明确（test/test_page.html 浏览器直连，无需设备）；待用户决定：①测试端口（xiaozhi 跑 8010 不动 pyserver，或停 pyserver 腾 8000）；②manager-api/manager-web（8001/8002，单例不需要）是否停掉。其余全部已提交、工作区干净。
 
 ## 📝 Open Questions
 <!-- No entries yet -->
 
 ---
-*Last updated by AI: 2026-09-21T03:20:52.021Z*
+*Last updated by AI: 2026-09-21T04:01:43.557Z*
 *Last updated by User: Never*
