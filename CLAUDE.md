@@ -5,37 +5,37 @@
 This file contains project context and decisions. AI assistants should read this file for context. MCP tools are an optional enhancement for richer interaction when connected.
 
 ## Project Context
-- **Total Decisions:** 25
+- **Total Decisions:** 26
 - **Known Topics:** xiaozhi, context-recall, decision, memory, api, python, edge, sqlite, architecture, single-device, llm, deepseek, raspberrypi, asr, neo4j
 
 ## Current State
 **Repository:** xiaozhi-esp32-server
 **Project Type:** Software Project
 **Branch:** main
-**Tracking:** ahead 22, behind 0
+**Tracking:** ahead 26, behind 0
 
 **Recent Commits:**
+- `03558f6 chore(continuity): 同步自动生成文件（标准姿势对照）`
+- `488d44e docs: 记录标准姿势对照与嵌入通道可选对齐（extension 调用链已判明）`
+- `0cd1198 chore(continuity): 同步自动生成文件（hard v3 全过）`
+- `d19f590 test(memory): 加强版召回测试 v3（更新/噪声/时延/快照审计，26 条全过）`
 - `dede5c1 chore(continuity): 同步自动生成文件（召回电池全绿 + 图谱副作用记录）`
-- `f82b03a feat(memory): 两阶段检索 + 严格 workspace 白名单（电池 16/16、自测 81/81）`
-- `278dd19 chore(continuity): 同步自动生成文件与决策（真机联调 + 召回增强）`
-- `359fae4 feat(memory): 拆词多路检索增强召回 + 真机联调脚本（自测 74/74）`
-- `4c12fc1 docs(deploy): 单例模板补充 DeepSeek/Kimi LLM 选项`
 
 **Working Tree:**
-- M .continuity/decisions.json
-- M .continuity/decisions.jsonl
-- M .cursorrules
-- M CLAUDE.md
-- M GEMINI.md
+- M main/xiaozhi-server/test/test_context_recall_live_hard.py
+- M main/xiaozhi-server/test/test_context_recall_provider.py
+- M docs/singleton-mode-plan.md
 
 ## Session Context
 **Goals:**
 - **完成**：方案设计闭环（单例模式 / Pi5 / 全云模型 / CR 记忆集成全部定案）；代码与工具提交（6b53c22、b5c01dc、b590d32、d790d68、dbb4d48、c921504、58f9705、70cbd5e）；方案落盘 `docs/singleton-mode-plan.md`；决策全部入 Continuity；工作区干净。
 - **下一步（明日）**：W1 = Phase 0 联调（CR 一次性测试实例 + 伪造快照全链路：导入/命中/幂等/隔离/降级）；可并行 W3（organizer 移植）。
 - **阻塞/排除**：Pi 部署（等硬件，已排除）；组织联调需智谱 LLM key（免费款，可先注册）。
+- **工期口径**：软件侧剩余 3–5 个工作日（AI 加速），约 1 周内闭环。
 
 **Blockers:**
 - 完整模式部署前置（如采用）：本机 Java/Maven 未装、当前用户不在 docker 组、8000 端口被 pyserver 占用
+
 
 ## Operating Contract
 1. **Load context, then search before you change.** MCP-capable agents: call `get_quick_context` at session start, then `search_decisions` before proposing changes. Shell/CLI-only agents (e.g. Copilot): run `continuity context`, then `continuity search "<topic>"` (`grep -i "<topic>" .continuity/decisions.jsonl` if the CLI is unavailable). Name any conflict with a prior decision and let the user choose. **When a prior decision informs your answer, cite it inline — "per decision-abc123, we chose X because Y" — so the user can see the memory being used, not just trust that it was.** `search_decisions` returns a `sourceTag` per result; use it.
@@ -60,25 +60,25 @@ Describe how this repository prefers to work with AI assistants.
 ---
 
 ## Recent Decisions
-1. **decision-3f7b2ffd** (9/21/2026) [context-recall, deepseek]
+1. **decision-387916d1** (9/21/2026) [context-recall, proposal]
+   - Q: 方向确认：CR 侧标准语义化（flag 兼容演进），客户端不强背永久 workaround
+   - A: ①缘由：xiaozhi 客户端的拆词/白名单/二阶段本质是 CR 语义不标准的补偿；用户提出修在源头，避免长期分叉。②提案（knowledge-agent-service docs/cjk-recall-todo.md）：P1 strict_workspace 参数（默认 False 保 extension 行为；True 时排除 ws='' 全局桶）+ scope_match 诚实化（exact+global / global_included 计数）；P2 CJK 通道与 ASCII 对齐（bigram OR 回退，按 _search_once 既有 AND+OR 并联哲学，只补 CJK 缺口）；P3 include_graph 开关（默认 True 兼容；xiaozhi 设 False）；P4 更新/更正 supersede；附兼容矩阵。③策略：新参数保默认、调用方 opt-in、大版本再翻默认；xiaozhi 增强退为防御层，CR 修复后用 battery/hard 回归验证可简化。④提交：knowledge 提案 + xiaozhi 方案文档方向确认。
+
+2. **decision-3f7b2ffd** (9/21/2026) [context-recall, deepseek]
    - Q: 加强版召回测试 v3（hard）通过：26 条矩阵 0 失败 / 噪声 0 / p95 259ms
    - A: ①脚本 test_context_recall_live_hard.py：3 段会话（基础/设备/更正+杂音）+ 26 条查询（正例/负例/数字变体/短词）+ 噪声关键词 + 陈旧值检测 + 稳定性 3×3 + 快照审计（设备杂音/事实覆盖）+ 时延统计；内置安全阀（目标启用 Neo4j 则拒跑，防再写用户图谱）。②对 graph-off 实例 8876 实测：直连 18/18、负例 4/4、噪声行 0、p95 259ms、设备杂音未入库、10 组事实全覆盖、稳定性一致。③唯一残留：更新后旧节点并存（爬山↔游泳 1 例实测）→ CR 待办 #4（supersede/近似去重）优先级上升（todo 文档已附加测证据）。④提交：xiaozhi（hard 脚本+方案文档§9）、knowledge-agent-service（todo 附录）。
 
-2. **decision-aab33271** (9/21/2026) [battery, context-recall]
+3. **decision-aab33271** (9/21/2026) [battery, context-recall]
    - Q: 两阶段检索 + 严格 workspace 白名单落地（f82b03a）：召回电池 16/16 全绿
    - A: ①新增召回电池脚本（test_context_recall_live_battery.py）：2 段会话 + 16 条查询矩阵（13 正例/3 负例），暴露 3 个真问题：'小明喜欢什么动物' 字面全落空、'早餐吃' 停用词粘字、'今天天气' 被 graph 通道污染（图实体无 workspace 字段）。②修复：build_fallback_candidates（首轮全空→二字组/单字二阶段兜底）；_in_scope_hits 严格白名单（只认本 workspace；无字段/None/异 ws 一律丢弃）。③验证：自测 81/81；电池 16/16（13 条直连全中 + 3 条负例全空）。④副作用披露：8765 实例启用 Neo4j，/v1/import/extension 会同步导入（migration.py:80）→ 联调合成数据已入图谱 30 节点/40 边；用户选择'先留着'；清理脚本见 knowledge-agent-service/scripts/cleanup-xiaozhi-test-entities.py（--apply 执行）。⑤电池已加 Neo4j 同步警告；今后联调建议 graph-off 实例。
 
-3. **decision-49832443** (9/21/2026) [context-recall, knowledge-service]
+4. **decision-49832443** (9/21/2026) [context-recall, knowledge-service]
    - Q: CR 侧根治待办已入库 knowledge-agent-service（13edc33）
    - A: docs/cjk-recall-todo.md：①CJK 词法 OR 回退（bigram/trigram，对齐 ASCII 的 AND+OR 并联）；②空 workspace 严格 scope 开关；③memory 单元向量通道（/v1/embed 或导入时生成）；④跨会话近义节点去重（LLM 措辞不同→节点累积）。以上均为知识服务仓库后续迭代项，不影响 xiaozhi 当前链路。
 
-4. **decision-0db75b68** (9/21/2026) [context-recall, deepseek]
+5. **decision-0db75b68** (9/21/2026) [context-recall, deepseek]
    - Q: query_utils 拆词多路检索落地（359fae4）：CR CJK 连续子串 AND 的 provider 侧规避
    - A: ①真机发现：CR 词法门对 CJK 是"连续子串 AND"（memory_store.cjk_phrase：每个连续片段必须逐字出现），整句提问必漏；语义通道需调用方随请求带 embedding（xiaozhi 无嵌入器→不参与）。②实现：query_utils.build_query_candidates（停用词剔除+多字片段优先+单字仅兜底）+ merge_hit_lists（按路序合并去重）；query_memory 改多路并行检索（asyncio.gather）。③单字兜底原因：实测候选"光"会把 ws='' 的 continuity 历史决策拉进客厅灯检索（_match 显式包含 ws='' 单元）。④验证：自测 74/74（新增 11.1-11.9 拆词、12.1-12.4 多路合并）；真机三条整句问句（儿子/灯光/作息）全部命中且无跨 scope 噪声；live 联调脚本入库 test/test_context_recall_live.py。⑤提交 359fae4（5 文件 +370）；方案文档 §9 已记。
-
-5. **decision-92bdc575** (9/21/2026) [aliyun, asr]
-   - Q: 联调配置就绪：data/.config.yaml 切换为 DeepSeek + 阿里云流式（用户选型）
-   - A: ①用户选型：LLM=DeepSeek（deepseek-chat）；ASR=阿里云流式（AliyunStreamASR）。②操作：原 data/.config.yaml（manager 失效配置）备份为 data/.config.yaml.bak-20260921；单例模板覆盖并预配置，用户只需填 4 个占位符（L51 deepseek api_key；L64-66 aliyun appkey/access_key_id/access_key_secret）。③代码确认：阿里云 provider 支持 access_key_id+secret 自动换 token（create_token→_refresh_token），无需手填 24h token。④密钥纪律：用户自行填入，不经聊天传输；data/ 已被 gitignore（.gitignore:148）防误提交；后续验证不读取密钥行。⑤CR 可达性：本地 8765 未起（联调时启动），8876 测试实例在跑。⑥入仓模板 config_singleton.yaml 保持四选一注释形态未动。
 
 ---
 
