@@ -9,6 +9,7 @@
   ``POST /v1/import/extension``；推送失败落本地 outbox，下次重投。
 - ``query_memory``（每轮对话前，跑在主事件循环，禁止阻塞）：
   ``POST /v1/search``（显式 ``scope_fallback="none"``）→ 受控长度的短文本注入 prompt。
+  多路拆词检索（query_utils）：原文 + 候选片段并行查询后合并，模拟 OR 语义。
 - ``init_memory``（连接建立 / 角色切换，同步接口）：记录 role_id/llm，按角色重建本地
   存储与 outbox，并尽力而为地补投历史失败快照。
 
@@ -22,6 +23,7 @@ from datetime import datetime
 from ..base import MemoryProviderBase, logger
 from .cr_client import CRClient
 from .organizer import fallback_minimal, organize
+from .query_utils import build_query_candidates, merge_hit_lists
 from .snapshot import (
     build_session,
     build_snapshot,
@@ -129,12 +131,26 @@ class MemoryProvider(MemoryProviderBase):
             logger.bind(tag=TAG).debug(f"outbox 后台补投创建失败（忽略）: {e}")
 
     async def query_memory(self, query: str) -> str:
-        """检索记忆并格式化为注入 prompt 的短文本；失败/空结果返回 ""。"""
+        """检索记忆并格式化为注入 prompt 的短文本；失败/空结果返回 ""。
+
+        多路检索（query_utils）：原文 + 拆词候选并行查询后合并去重，模拟 OR 语义。
+        背景：CR 词法门对 CJK 是"连续子串 AND"，整句提问必然漏（真机联调实测）。
+        """
         if not self.enabled or not query:
             return ""
         try:
-            hits = await self.client.search(
-                query, self.workspace_id, self.limit, self.min_similarity
+            candidates = build_query_candidates(query)
+            results = await asyncio.gather(
+                *(
+                    self.client.search(
+                        candidate, self.workspace_id, self.limit, self.min_similarity
+                    )
+                    for candidate in candidates
+                ),
+                return_exceptions=True,
+            )
+            hits = merge_hit_lists(
+                [item for item in results if isinstance(item, list)], self.limit
             )
         except Exception as e:  # noqa: BLE001 - 检索异常必须降级为空记忆
             logger.bind(tag=TAG).debug(f"记忆检索异常（降级为空记忆）: {e}")

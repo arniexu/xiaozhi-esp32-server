@@ -14,7 +14,9 @@
   6) query_memory 命中格式化 / 空结果 / 异常 / 禁用降级；
   7) save_memory 全流程（Fake LLM + Fake CRClient）与 <3 轮用户发言跳过组织；
   8) config.yaml 的 Memory.context_recall 配置块 + selected_module.Memory 未被改动；
-  9) core.utils.memory.create_instance 能按约定加载本 provider。
+  9) core.utils.memory.create_instance 能按约定加载本 provider；
+  10) init_memory 的 outbox 后台补投与角色切换重建；
+  11) 查询拆词（query_utils）与多路检索合并。
 
 全部通过退出码 0；任一失败退出码 1。
 """
@@ -67,6 +69,10 @@ from core.providers.memory.context_recall import snapshot as snapshot_mod  # noq
 from core.providers.memory.context_recall import storage as storage_mod  # noqa: E402
 from core.providers.memory.context_recall.context_recall import MemoryProvider  # noqa: E402
 from core.providers.memory.context_recall.cr_client import CRClient  # noqa: E402
+from core.providers.memory.context_recall.query_utils import (  # noqa: E402
+    build_query_candidates,
+    merge_hit_lists,
+)
 from core.utils.dialogue import Message  # noqa: E402
 
 NOW = "2026-09-21T10:00:00+08:00"
@@ -836,6 +842,128 @@ def test_init_memory():
             )
 
 
+# ---------------------------------------------------------------------------
+# 11) 查询拆词（query_utils）
+# ---------------------------------------------------------------------------
+def test_query_candidates():
+    check(
+        "11.1 疑问句拆词：'我儿子叫什么名字' → 原文 + 儿子/名字",
+        build_query_candidates("我儿子叫什么名字")
+        == ["我儿子叫什么名字", "儿子", "名字"],
+        f"{build_query_candidates('我儿子叫什么名字')}",
+    )
+    check(
+        "11.2 时间问句：'我早上几点起床' → 原文 + 早上/起床",
+        build_query_candidates("我早上几点起床") == ["我早上几点起床", "早上", "起床"],
+        f"{build_query_candidates('我早上几点起床')}",
+    )
+    check(
+        "11.3 片段序：只取多字片段，单字（灯/光，噪声大）不入队",
+        build_query_candidates("客厅的灯是什么颜色的光")
+        == ["客厅的灯是什么颜色的光", "客厅", "颜色"],
+        f"{build_query_candidates('客厅的灯是什么颜色的光')}",
+    )
+    check(
+        "11.3b 单字兜底：没有多字片段时才启用（'灯在哪' → 原文 + 灯）",
+        build_query_candidates("灯在哪") == ["灯在哪", "灯"],
+        f"{build_query_candidates('灯在哪')}",
+    )
+    check(
+        "11.4 纯 ASCII 查询原样单路（保持词法 AND/OR 通道）",
+        build_query_candidates("wifi password") == ["wifi password"],
+        f"{build_query_candidates('wifi password')}",
+    )
+    check("11.5 空查询 → []", build_query_candidates("") == [])
+    long_query = "请问你知不知道我上次说的那个修热水器的师傅的电话号码是多少来着"
+    candidates = build_query_candidates(long_query)
+    check(
+        "11.6 超长问句仍限量（≤6 路，原文在首位）",
+        len(candidates) <= 6 and candidates[0] == long_query,
+        f"n={len(candidates)}",
+    )
+    check(
+        "11.7 重复片段不重复入队（去重）",
+        build_query_candidates("儿子 儿子") == ["儿子 儿子", "儿子"],
+        f"{build_query_candidates('儿子 儿子')}",
+    )
+    merged = merge_hit_lists(
+        [[{"id": "a"}, {"id": "b"}], [{"id": "b"}, {"id": "c"}], "not-a-list"],
+        limit=10,
+    )
+    check(
+        "11.8 merge：按路序去重、忽略非列表项",
+        [hit["id"] for hit in merged] == ["a", "b", "c"],
+        f"{merged}",
+    )
+    limited = merge_hit_lists([[{"id": "a"}, {"id": "b"}, {"id": "c"}]], limit=2)
+    check("11.9 merge：limit 截断", len(limited) == 2)
+
+
+# ---------------------------------------------------------------------------
+# 12) 多路检索合并（query_memory）
+# ---------------------------------------------------------------------------
+class RouteFakeCRClient(FakeCRClient):
+    """按查询串返回不同结果的 Fake：只有 search_map 里配置的查询有命中。"""
+
+    def __init__(self, search_map=None):
+        super().__init__()
+        self.search_map = search_map or {}
+
+    async def search(self, query, workspace_id, limit=6, min_similarity=0.35):
+        self.search_calls.append(
+            {
+                "query": query,
+                "workspace_id": workspace_id,
+                "limit": limit,
+                "min_similarity": min_similarity,
+            }
+        )
+        return list(self.search_map.get(query, []))
+
+
+def test_query_multi_route():
+    hit = {"id": "k1", "summary": "小明", "resolution": "用户的儿子，今年五岁"}
+
+    provider = MemoryProvider(provider_config(), None)
+    provider.client = RouteFakeCRClient({"儿子": [hit]})
+    provider.init_memory("dev-01", None)
+    out = asyncio.run(provider.query_memory("我儿子叫什么名字？"))
+    queries = [call["query"] for call in provider.client.search_calls]
+    check(
+        "12.1 多路检索发生（原文在首路，拆词候选并行）",
+        len(queries) >= 2 and queries[0] == "我儿子叫什么名字？" and "儿子" in queries,
+        f"{queries}",
+    )
+    check(
+        "12.2 拆词命中 → 正确格式化",
+        out.startswith("- 小明：用户的儿子，今年五岁"),
+        repr(out),
+    )
+
+    provider2 = MemoryProvider(provider_config(), None)
+    provider2.client = RouteFakeCRClient(
+        {
+            "我儿子叫什么名字": [{"id": "raw", "summary": "RAW", "resolution": "r0"}],
+            "儿子": [{"id": "k1", "summary": "小明", "resolution": "r1"}],
+        }
+    )
+    provider2.init_memory("dev-01", None)
+    out2 = asyncio.run(provider2.query_memory("我儿子叫什么名字"))
+    check(
+        "12.3 原文命中优先（顺序按路序）",
+        out2.split("\n")[0].startswith("- RAW：r0") and "小明" in out2,
+        repr(out2),
+    )
+
+    provider3 = MemoryProvider(provider_config(), None)
+    provider3.client = RouteFakeCRClient({})
+    provider3.init_memory("dev-01", None)
+    check(
+        "12.4 多路均空 → ''",
+        asyncio.run(provider3.query_memory("我儿子叫什么名字")) == "",
+    )
+
+
 def main():
     print("=" * 60)
     print("context_recall provider 自跑测试（无 pytest / 无网络 / 无真实 LLM）")
@@ -850,6 +978,8 @@ def main():
     run("8 config.yaml", test_config_yaml)
     run("9 加载器约定", test_loader)
     run("10 init_memory", test_init_memory)
+    run("11 查询拆词（query_utils）", test_query_candidates)
+    run("12 多路检索合并", test_query_multi_route)
 
     passed = sum(1 for _, ok in RESULTS if ok)
     total = len(RESULTS)

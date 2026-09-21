@@ -104,10 +104,23 @@ Pi 上两个 user 级 systemd 服务：
 
 ## 8. 开放项（待定）
 
-- 云凭据：流式 ASR 账号（阿里 / 火山二选一）；LLM 智谱免费款可先跑通
+- ~~云凭据~~：已定 DeepSeek（LLM）+ 阿里云流式 ASR（2026-09-21 联调）；智谱免费款留作备选
 - 存储选型：NVMe vs SD（建议 NVMe）
 - 完整模式（manager 栈）去留：决定 manager 侧角色切换改动的后续处置
 - 角色协议扩展形态（hello 携带 role vs agent 消息携带）——建议 Pi 首版静态单角色
+
+## 9. 2026-09-21 真机联调发现与处置（DeepSeek + 阿里云 ASR + CR@8765）
+
+**链路结论**：组织/导入真机通过（真实 DeepSeek：nodes=5、edges=2、fallback=False）；整句问句召回经增强后全部命中。
+
+**发现**：
+1. CR 词法门对 CJK 是"连续子串 AND"：查询每个连续片段必须逐字出现——`儿子` 命中、`我儿子叫什么名字` 必漏。
+2. 语义通道要求调用方随请求携带 `embedding`（`source_kind='knowledge'`）；xiaozhi 侧无嵌入器 → 实际不参与。
+3. `workspace_id=''` 单元全库参与检索（`memory_store._match` 显式包含）——单字候选"光"曾把 continuity 历史决策拉进客厅灯检索。
+
+**处置（xiaozhi 侧已实现）**：`query_utils.py` 拆词（停用词剔除、多字片段优先、单字仅兜底）+ 多路并行检索 + 按路序合并去重；`query_memory` 接入；自测 74/74；真机三条整句问句全部命中且无噪声。
+
+**CR 侧待办**（详见 knowledge-agent-service `docs/cjk-recall-todo.md`）：CJK bigram OR 回退；空 workspace 严格隔离开关；memory 单元向量通道；跨会话近义节点去重。
 
 ---
 
