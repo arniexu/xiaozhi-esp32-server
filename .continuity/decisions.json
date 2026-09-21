@@ -959,5 +959,62 @@
       "source": "cli",
       "timestamp": "2026-09-21T01:10:08.866Z"
     }
+  },
+  {
+    "id": "7f77b0ec-086f-4a43-91a1-f790ccba3095",
+    "question": "W2 完成并验收通过（ee6bfad）：context_recall 记忆 provider",
+    "answer": "①交付：core/providers/memory/context_recall/ 六文件（provider 255 行/client 113/organizer 290/snapshot 104/storage 165 + 测试 866 行 60 断言）+ config.yaml 配置块（ee6bfad，8 文件 +1808）。实现者=dsh W2 波次（报告 /tmp/xiaozhi-w2/w2-report.md），验证者=Copilot。②独立验收：compileall ✓；测试重跑 60/60 ✓；真实 8876 写路径 E2E（Fake LLM）→ imported_memories=2、query 命中（项目节点+会话摘要）、跨 workspace 0 泄漏 ✓；范围检查仅允许 8 文件 ✓。③关键实现确认：scope_fallback='none' 硬编码、trust_env=False、短连接（主循环+保存线程双事件循环安全）、用户发言<3 轮不组织、outbox 原子写+补投、确定性 ID 幂等、service_url 空=整体禁用。④预存在环境问题（data/.config.yaml 指向 8002 失效 manager-api + 企业代理；单例部署将移除 manager 依赖）已独立证明与 W2 无关。⑤W5 结论：connection.py 无需改动（provider 自洽）。⑥残留 UNCONFIRMED：真实 LLM 组织 prompt 质量（待 LLM key/真机）；长会话中途快照未实现（设计后置）。⑦下一步：真机联调（需智谱免费 key）→ 部署准备。",
+    "timestamp": "2026-09-21T01:29:28.318Z",
+    "tags": [
+      "api",
+      "context-recall",
+      "memory",
+      "verified",
+      "w2",
+      "xiaozhi"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-21T01:29:28.318Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-21T01:29:28.319Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [
+        "rust"
+      ],
+      "patterns": [],
+      "concepts": [
+        "api",
+        "storage"
+      ]
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-21T01:29:28.283Z"
+    }
   }
 ]
