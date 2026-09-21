@@ -256,6 +256,20 @@ class ConnectionHandler:
                         # 创建新事件循环（避免与主循环冲突）
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
+                        # 记忆 provider 为共享实例：保存前重新绑定本连接的角色，
+                        # 防止并发连接（或后连连接）覆盖 role 导致会话存错目录（实测踩坑：
+                        # 两个连接并存时，先连会话被存到了后连角色下）
+                        memory_role_id = getattr(self, "memory_role_id", None) or (
+                            f"{self.device_id}#{self.agent_id}"
+                            if self.agent_id
+                            else self.device_id
+                        )
+                        self.memory.init_memory(
+                            role_id=memory_role_id,
+                            llm=self.llm,
+                            summary_memory=self.config.get("summaryMemory", None),
+                            save_to_file=not self.read_config_from_api,
+                        )
                         loop.run_until_complete(
                             self.memory.save_memory(self.dialogue.dialogue)
                         )
@@ -669,6 +683,8 @@ class ConnectionHandler:
         memory_role_id = (
             f"{self.device_id}#{self.agent_id}" if self.agent_id else self.device_id
         )
+        # 记录到连接上：保存时需重新绑定（provider 为共享实例，见 _save_and_close）
+        self.memory_role_id = memory_role_id
         self.memory.init_memory(
             role_id=memory_role_id,
             llm=self.llm,
