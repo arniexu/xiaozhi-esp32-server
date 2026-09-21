@@ -125,6 +125,8 @@ Pi 上两个 user 级 systemd 服务：
 
 **标准姿势对照（extension vs xiaozhi，2026-09-21 读码判明）**：接口同为 `/v1/search`。extension 的完整姿势 = ①每次携带客户端 `embed(query)`（`vector.ts`：FNV-1a 256 维签名词袋；词=普通词+CJK 单字+双字；NFKC/小写）+ 导入时同样生成向量；②不传 `scope_fallback`（默认 `global` 跨 scope 兜底）+ `workspace_ids` 别名集；③客户端**加权重排**（`rankRetrievalResults`：semantic 1.0 / lexical 1.2 / graph 0.8，graph 要求词面重叠）——即"客户端增强"本身是标准架构的一部分。xiaozhi 偏离：①未带 embedding（semantic 恒空；**可选对齐项**：Python 复刻 embed 约 40 行 + 导入/查询接线 + 测试）；②`scope_fallback=none` + 严格白名单（单设备隔离，实测需要）；③增强更激进（拆词/二阶段兜底）。
 
+**方向确认（2026-09-21）**：语义统一**修在 CR 侧**（flag 兼容演进：`strict_workspace` / `scope_match` 诚实化 / CJK OR 回退 / `include_graph`），不背永久 workaround；xiaozhi 客户端增强退为防御层，CR 修复落地后用 battery/hard 回归验证可安全简化。提案见 knowledge-agent-service `docs/cjk-recall-todo.md`。
+
 **CR 侧待办**（详见 knowledge-agent-service `docs/cjk-recall-todo.md`）：CJK bigram OR 回退；空 workspace 严格隔离开关；memory 单元向量通道；跨会话近义节点去重。
 
 ---
