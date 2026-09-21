@@ -1330,5 +1330,58 @@
       "source": "cli",
       "timestamp": "2026-09-21T02:55:06.875Z"
     }
+  },
+  {
+    "id": "3f7b2ffd-f841-4a3c-b569-0162289d5545",
+    "question": "加强版召回测试 v3（hard）通过：26 条矩阵 0 失败 / 噪声 0 / p95 259ms",
+    "answer": "①脚本 test_context_recall_live_hard.py：3 段会话（基础/设备/更正+杂音）+ 26 条查询（正例/负例/数字变体/短词）+ 噪声关键词 + 陈旧值检测 + 稳定性 3×3 + 快照审计（设备杂音/事实覆盖）+ 时延统计；内置安全阀（目标启用 Neo4j 则拒跑，防再写用户图谱）。②对 graph-off 实例 8876 实测：直连 18/18、负例 4/4、噪声行 0、p95 259ms、设备杂音未入库、10 组事实全覆盖、稳定性一致。③唯一残留：更新后旧节点并存（爬山↔游泳 1 例实测）→ CR 待办 #4（supersede/近似去重）优先级上升（todo 文档已附加测证据）。④提交：xiaozhi（hard 脚本+方案文档§9）、knowledge-agent-service（todo 附录）。",
+    "timestamp": "2026-09-21T03:04:48.228Z",
+    "tags": [
+      "context-recall",
+      "deepseek",
+      "hard",
+      "memory",
+      "testing"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-21T03:04:48.228Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-21T03:04:48.229Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [
+        "neo4j"
+      ],
+      "patterns": [],
+      "concepts": []
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-21T03:04:48.196Z"
+    }
   }
 ]
