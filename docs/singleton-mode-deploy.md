@@ -1,6 +1,7 @@
 # 单例模式部署手册（Pi 5 / 开发机通用）
 
 > 设计文档：`docs/singleton-mode-plan.md` ｜ 验收脚本：`main/xiaozhi-server/scripts/run-acceptance.sh`
+> 启动/启停/排障见 `docs/singleton-mode-start.md`（本文负责"装"，该文负责"起"与日常运维）。
 > 本文只列"到手即执行"的步骤（开发机同样适用）。
 
 ## 0. 前置清单
