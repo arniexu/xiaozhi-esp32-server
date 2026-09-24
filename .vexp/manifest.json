@@ -1,7 +1,7 @@
 {
   "file_hashes": {
-    "CLAUDE.md": "54c4b9c743075456eb7b77625b0e40b27ecdba3862b6c57bed525e28dd237aa5",
-    "GEMINI.md": "e48cd5f2d535d087ab9f91c45582514fa4623b32d72c884081bd6ea9b7744262",
+    "CLAUDE.md": "12b142c2f6e921621f78daf37b0bb286d378724c97040e35cadffdc3b5a6b7a2",
+    "GEMINI.md": "12b142c2f6e921621f78daf37b0bb286d378724c97040e35cadffdc3b5a6b7a2",
     "README_en.md": "5f92bec0a465b5a5974e39b6324c8440a668b7e074f8a1928c45c2ae543a1a52",
     "main/README_en.md": "1f8596a11347cbfa74aafaa2c2a0e62e992279fa74692f0e1813db2473153a31",
     "main/manager-api/Dockerfile": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
@@ -359,7 +359,7 @@
     "main/xiaozhi-server/core/handle/sendAudioHandle.py": "bd6ea1960739e556685c321a6c849d1ba78a86fddbcd52506eea1394d8956281",
     "main/xiaozhi-server/core/handle/textHandle.py": "66fa5c74bd09d79ad1585320257e4ea3ef3112f00f9d0b811cc625fb3f35bad8",
     "main/xiaozhi-server/core/providers/asr/aliyun.py": "9c8583cfdbd747a32bfb639ac406b02d0aa587d4629d86f8844894198df9a1e4",
-    "main/xiaozhi-server/core/providers/asr/aliyun_stream.py": "18659eb8acb992ff60b0026613776784cfa6a4f6df590f286dfd1b17c51f1149",
+    "main/xiaozhi-server/core/providers/asr/aliyun_stream.py": "f249323d030be08a80399c2f33011747ae8451721d1f9e73ee5fb9ba019681e3",
     "main/xiaozhi-server/core/providers/asr/baidu.py": "695ffd3285487dc412f30dbfb29402314bf55a08cff24f766447951759c60bb9",
     "main/xiaozhi-server/core/providers/asr/base.py": "71019443e437a5f27a904b789f70c76a0105720c0fede53eb9b9638a07fecd63",
     "main/xiaozhi-server/core/providers/asr/doubao.py": "f85d42f7e4808e834082c74e5e072370aaa6dc2048a9bc9a9394410c7d8a3b8c",
@@ -386,6 +386,13 @@
     "main/xiaozhi-server/core/providers/llm/system_prompt.py": "29c2ff8db217a6e8332c307c803fbc377a2a77a7baf6ff2fc2bb1157100f2dc6",
     "main/xiaozhi-server/core/providers/llm/xinference/xinference.py": "1c1917c9903adff164c2a3247215be1ee7a7e6310da3769b30ef8e1b3f6ea554",
     "main/xiaozhi-server/core/providers/memory/base.py": "5604fadbf0398099bf68fa71bcc829ec3ad652961c52c1dd4697fa011e372076",
+    "main/xiaozhi-server/core/providers/memory/context_recall/__init__.py": "4b5791797c5ae65fd80d39246901ed0691338ace1744d33733e651e02d06d533",
+    "main/xiaozhi-server/core/providers/memory/context_recall/context_recall.py": "776c90b84c2cbd691808784bca51dc5fc700532eceedb019450d138020997332",
+    "main/xiaozhi-server/core/providers/memory/context_recall/cr_client.py": "bd04f039c53cc186dfb4fc2a46df87da276a8f5b4972915c343d44185e2c3257",
+    "main/xiaozhi-server/core/providers/memory/context_recall/organizer.py": "444b6261dc5e195a24b62425ae0397919228756948f08aadecfb74e82cd4a989",
+    "main/xiaozhi-server/core/providers/memory/context_recall/query_utils.py": "b78c67ed2a4f87691a86aabbd989cb1036a499a353fb9d264ea43feaf064d9ab",
+    "main/xiaozhi-server/core/providers/memory/context_recall/snapshot.py": "1352308c8fa80a77afcbbe7849299c31966b1fbd01c8b533e260304a58bb106f",
+    "main/xiaozhi-server/core/providers/memory/context_recall/storage.py": "74ce2f185f14b9a3dae91ce13e5f8ddd69c1253285c8c9f634b85bb151f520fe",
     "main/xiaozhi-server/core/providers/memory/mem0ai/mem0ai.py": "7ec7712d2f45507bf9624f05a34076b971c873eadbfda0eaa7687d68ceeca539",
     "main/xiaozhi-server/core/providers/memory/mem_local_short/mem_local_short.py": "16f93139883bfaee3e2730f630b27f00fd83d811aa5c794c7269dddc8ef4ddd0",
     "main/xiaozhi-server/core/providers/memory/nomem/nomem.py": "90a02ef5ee0a0dd4d77cfcc54701a7c75c49e26eb26e2fcfd0d7436238d29f54",
@@ -421,7 +428,7 @@
     "main/xiaozhi-server/core/providers/tts/default.py": "dab16cf0dee6b9bdb676b4568d9e0b3da678dfe5ea0419d75eadd992a5d6fd43",
     "main/xiaozhi-server/core/providers/tts/doubao.py": "ba1c741e240d25a6a49f7fe40311e8082f4bd7caead60a0884c047def1031d1e",
     "main/xiaozhi-server/core/providers/tts/dto/dto.py": "caf4de79c1a26c02d7c9d6943d92c76d21f19615fcbdede2fe4b9572d69453ce",
-    "main/xiaozhi-server/core/providers/tts/edge.py": "fa14f3b205014239856b7785c81ee90101b02df54378fc23778443c3417c5a65",
+    "main/xiaozhi-server/core/providers/tts/edge.py": "18f1132f571b12a79b7f1f55fb7518d8b47dd80215be653a3d91f21a35cd8ed0",
     "main/xiaozhi-server/core/providers/tts/fishspeech.py": "47335f08ea833cde536aa65acdc9d5355f22011a49b1c157aef7da1775d6421b",
     "main/xiaozhi-server/core/providers/tts/gpt_sovits_v2.py": "8fb494ba2dc9fe23feb21d08caa8143b8624487b09aa5a281efbdf390367526f",
     "main/xiaozhi-server/core/providers/tts/gpt_sovits_v3.py": "a4868242fe811b2c01aaa9a8bc08c151b6183a93097aaeaac41eda06815cff73",
@@ -438,21 +445,6 @@
     "main/xiaozhi-server/core/providers/vad/silero.py": "b86a26b231dda77bb09a9e6341243f1f884684975e394484a5a3614ec3edafef",
     "main/xiaozhi-server/core/providers/vllm/base.py": "85fea25e7c3193ed3a85595fae25bbe13372ecc2fd1a3eeb0c73c6471d7c453a",
     "main/xiaozhi-server/core/providers/vllm/openai.py": "b42d5e3df57ee10fb9810594d3521428f78d148b44a11cb54b8b0e6c356d88c2",
-    "main/xiaozhi-server/core/utils/alibaba_config.py": "2d32aa4f6e1b69a0367d4d2b1983d63e57c08ca719fdedd8b6993de565322d8d",
-    "main/xiaozhi-server/core/utils/asr.py": "c7f1414318c160f5dded30b1556eff6675792fb37842fde1436894ceb5b61fc6",
-    "main/xiaozhi-server/core/utils/auth.py": "16f9fcb5e17968a0820db80cbbaf8c4486f2e5c51c45f2c4d4dea0a860bfd2e8",
-    "main/xiaozhi-server/core/utils/cache/config.py": "1e4b31e16a5f65d9db6c96736fbce91865048ce32154bf6d59a1b28ae090766e",
-    "main/xiaozhi-server/core/utils/cache/manager.py": "cbcce413b931359d15e071500f4e3e1892147be3f3485643fa74be0689307535",
-    "main/xiaozhi-server/core/utils/cache/strategies.py": "7f69fd9e8eada52cc728a94d31e3a35d8aa353d4bb4f6d71baa5e15d3d5662af",
-    "main/xiaozhi-server/core/utils/config_reader.py": "70fd16676e85e2d1af5871b2e9ad1a58f6b058a3d6e3acb32ee46af46684d0e8",
-    "main/xiaozhi-server/core/utils/intent.py": "73ab13bb18ec6887f4f98025e69cfb2e302374def5dfe0f67e20a5904d5c853e",
-    "main/xiaozhi-server/core/utils/llm.py": "8eb9a9d11a10b400a91b442bb8e6f67640033c9d7a35fedd2058aa9d01e1f01d",
-    "main/xiaozhi-server/core/utils/modules_initialize.py": "0965432cebee5851cbb993dfe8159d45e13407274c6892a42300b53d9b89b8b5",
-    "main/xiaozhi-server/core/utils/opus_encoder_utils.py": "0caa260d081af4bfdc8369c784f60d0355f366b45e909010358cdf89dd88721f",
-    "main/xiaozhi-server/core/utils/output_counter.py": "28efcb4153b6755c11e69c10a8cede1c28be34163645794d2a8d717bc67d971e",
-    "main/xiaozhi-server/core/utils/p3.py": "699200989b3619963f74afdedf5dc68e5bc5a88292de433a8b6086a2ac8adc3f",
-    "main/xiaozhi-server/core/utils/tts.py": "b7c426aa0ebd3147883d950f466c5bf697c11491e9effc26cd16c532815a0bac",
-    "main/xiaozhi-server/core/utils/wakeup_word.py": "fa54d2b7581d119086973f9ad7fe605ed2c5f825ff476bd15498ea614e613e56",
     "main/xiaozhi-server/models/SenseVoiceSmall/demo.py": "1ea1911ac2673dedabd38f7c5a561e29abb4053765f1bcec662a67296e2f93a9",
     "main/xiaozhi-server/models/snakers4_silero-vad/hubconf.py": "7e248258b6eb4ab49adf15f1acef9071f92d224f115ef9aea6949268c2de70ff",
     "main/xiaozhi-server/models/snakers4_silero-vad/src/silero_vad/__init__.py": "6a6f5b7050a211f285e58709c876a8b48189c3acd84afb7c1c58bf47a5724971",
@@ -480,15 +472,15 @@
     "main/xiaozhi-server/test_face_direct.py": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
     "main/xiaozhi-server/test_websocket_format.py": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"
   },
-  "indexed_at_commit": "54ad9d2b2dcba95420d140bc32cfb1e9fa906a5d",
-  "indexed_at_timestamp": "2026-09-21T20:22:53.829903829+00:00",
+  "indexed_at_commit": "5b1616ca4b0ea165f43b185ef616cdb516f6f94f",
+  "indexed_at_timestamp": "2026-09-24T05:15:14.167258563+00:00",
   "languages": {
     "css": {
       "calls": 0,
       "nodes": 16
     },
     "java": {
-      "calls": 820,
+      "calls": 841,
       "nodes": 994
     },
     "javascript": {
@@ -497,11 +489,11 @@
     },
     "markdown": {
       "calls": 0,
-      "nodes": 118
+      "nodes": 120
     },
     "python": {
-      "calls": 504,
-      "nodes": 772
+      "calls": 440,
+      "nodes": 755
     },
     "sql": {
       "calls": 0,
@@ -512,11 +504,12 @@
       "nodes": 53
     }
   },
+  "parser_version": "3.2.5",
   "schema_version": 3,
   "stats": {
-    "total_edges": 5045,
-    "total_files": 479,
-    "total_nodes": 2007
+    "total_edges": 4983,
+    "total_files": 471,
+    "total_nodes": 1992
   },
-  "vexp_version": "3.2.2"
+  "vexp_version": "3.2.5"
 }
