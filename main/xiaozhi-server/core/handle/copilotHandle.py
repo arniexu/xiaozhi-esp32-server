@@ -10,6 +10,7 @@
   conn._copilot_active_request 作废进行中的转发，避免陈旧回包串入新句子。
 """
 
+import inspect
 import json
 import time
 import uuid
@@ -147,7 +148,12 @@ def _forward_to_copilot(conn, request_id, session_id, query, cfg):
         # websockets>=12 提供 sync API；仓库 requirements 已含 websockets
         from websockets.sync.client import connect as ws_connect
 
-        ws = ws_connect(url, open_timeout=connect_timeout)
+        # 强制直连：禁用 websockets>=15 的环境代理（公司网络 socks_proxy/http_proxy
+        # 会劫持 localhost 连接，导致 InvalidProxy/403）；老版本无 proxy 参数则跳过
+        connect_kwargs = {"open_timeout": connect_timeout}
+        if "proxy" in inspect.signature(ws_connect).parameters:
+            connect_kwargs["proxy"] = None
+        ws = ws_connect(url, **connect_kwargs)
         ws.send(
             json.dumps(
                 {

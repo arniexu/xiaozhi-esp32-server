@@ -23,11 +23,13 @@ import time
 # ---------------------------------------------------------------------------
 # 环境加固（同 test_context_recall_provider.py 套路，仅本进程，不改仓库文件）
 # ---------------------------------------------------------------------------
-# 1) 企业代理环境变量会让 localhost 连接走代理（历史已踩坑），测试内清空
+# 1) 企业代理环境变量会让 localhost 连接走代理（历史已踩坑）：清空常见变量，
+#    并故意保留一个 socks_proxy 作为回归——桥接客户端必须显式禁用环境代理（websockets>=15）
 for _k in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"):
     os.environ.pop(_k, None)
 os.environ["no_proxy"] = "localhost,127.0.0.1"
 os.environ["NO_PROXY"] = "localhost,127.0.0.1"
+os.environ["socks_proxy"] = "socks://invalid-proxy.example:1080/"  # 回归：必须仍能直连 127.0.0.1
 
 # 2) 脚本方式运行时把项目根加入 sys.path 并切到项目根
 _HERE = os.path.dirname(os.path.abspath(__file__))

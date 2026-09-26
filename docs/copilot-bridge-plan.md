@@ -110,6 +110,7 @@ copilot_bridge:
 | VS Code 关闭 / 扩展未加载 | 连接失败 → 播报「Copilot 桥接没连上，请确认 VS Code 已打开并启用了桥接扩展」 |
 | 扩展返回 error（配额等） | 尚未出声则播报「Copilot 暂时用不了了：…」；已出声则静默结束 |
 | 回复超时（默认 120s） | 未出声则播报超时提示 |
+| 环境代理劫持 localhost（公司网络 `socks_proxy` 等） | 桥接客户端强制直连（websockets `proxy=None`）；测试含回归用例 |
 | 用户中途打断（barge-in） | 既有打断机制生效；转发线程 ≤0.25s 内察觉并给扩展发 `cancel` |
 | 模式内说「再见」等常规退出词 | 仍走 `check_direct_exit`（关闭连接等标准行为不受影响） |
 | 唤醒问候 / 超时结束语 | `source="system"` 直通原链路，不会误转发给 Copilot |
