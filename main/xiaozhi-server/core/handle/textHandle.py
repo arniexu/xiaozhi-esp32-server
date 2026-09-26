@@ -95,7 +95,7 @@ async def handleTextMessage(conn, message):
                         # 上报纯文字数据（复用ASR上报功能，但不提供音频数据）
                         enqueue_asr_report(conn, "嘿，你好呀", [])
                         conn.logger.bind(tag=TAG).debug(f"已入队ASR报告，开始对话流程")
-                        await startToChat(conn, "嘿，你好呀")
+                        await startToChat(conn, "嘿，你好呀", source="system")
                         conn.logger.bind(tag=TAG).debug(f"唤醒对话流程完成")
                     else:
                         conn.logger.bind(tag=TAG).info(f"普通文本消息'{original_text}'，开始LLM对话流程")

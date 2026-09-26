@@ -897,3 +897,29 @@ TTS:
     access_token: "U4YdYXVfpwWnk2t5Gp822zWPCuORyeJL"
     voice: "OUeAo1mhq6IBExi"
     output_dir: tmp/
+
+# Copilot 桥接：把设备接到本机 VS Code 的 Copilot Chat（小智插件）
+# 用法：说「问 Copilot 帮我看看……」（关键词可配）进入 Copilot 模式，
+# 模式内对话转发给 VS Code 扩展（tools/vscode-copilot-bridge/），回复由设备播报；
+# 说「退出 Copilot」结束。详见 docs/copilot-bridge-plan.md。
+copilot_bridge:
+  # 总开关（关闭后关键词不生效，完全不影响常规对话）
+  enabled: true
+  # VS Code 扩展桥接监听地址（仅本机 localhost）
+  url: ws://127.0.0.1:8767
+  # 连接超时 / 整次回复超时（秒）
+  connect_timeout: 3
+  reply_timeout: 120
+  # 进入 Copilot 模式的关键词（匹配忽略空格、大小写与标点；命中后剩余内容作为首个问题）
+  enter_keywords:
+    - 问copilot
+    - 问一下copilot
+    - 问问copilot
+    - 找copilot
+    - 呼叫copilot
+  # 退出 Copilot 模式的关键词（匹配忽略空格、大小写与标点）
+  exit_keywords:
+    - 退出copilot
+    - 结束copilot
+    - 关闭copilot
+    - 收起copilot

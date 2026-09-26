@@ -3,6 +3,7 @@ from core.handle.intentHandler import handle_user_intent, speak_txt
 from core.agent_approval import approval_manager, match_decision
 from core.utils.output_counter import check_device_output_limit
 from core.handle.abortHandle import handleAbortMessage
+from core.handle.copilotHandle import maybe_handle_copilot_message
 import time
 import asyncio
 import json
@@ -40,7 +41,8 @@ async def resume_vad_detection(conn):
     conn.just_woken_up = False
 
 
-async def startToChat(conn, text):
+async def startToChat(conn, text, source="user"):
+    # source: user=真实用户输入（语音/文本）；system=系统伪输入（唤醒问候/超时结束语等）
     # 检查输入是否是JSON格式（包含说话人信息）
     speaker_name = None
     actual_text = text
@@ -102,6 +104,10 @@ async def startToChat(conn, text):
                 conn.logger.bind(tag=TAG).warning(f"授权审批语音提示失败: {e}")
             return True
 
+    # Copilot 桥接分叉：模式切换与转发（设计见 docs/copilot-bridge-plan.md）
+    if await maybe_handle_copilot_message(conn, actual_text, source=source):
+        return True
+
     # 首先进行意图分析，使用实际文本内容
     intent_handled = await handle_user_intent(conn, actual_text)
 
@@ -138,7 +144,7 @@ async def no_voice_close_connect(conn, have_voice):
             prompt = end_prompt.get("prompt")
             if not prompt:
                 prompt = "请你以```时间过得真快```未来头，用富有感情、依依不舍的话来结束这场对话吧。！"
-            await startToChat(conn, prompt)
+            await startToChat(conn, prompt, source="system")
 
 
 async def max_out_size(conn):
