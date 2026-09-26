@@ -3325,5 +3325,60 @@
       "source": "cli",
       "timestamp": "2026-09-26T08:11:27.909Z"
     }
+  },
+  {
+    "id": "d711f3fd-d631-4c73-9828-0b352a178df5",
+    "question": "（2026-09-26）桥接冒烟发现：websockets>=15 默认读取环境代理，公司网络 socks_proxy 劫持 localhost 连接（InvalidProxy/握手失败）？",
+    "answer": "已修复：copilotHandle 连接桥接时显式 proxy=None 强制直连（inspect 兼容无该参数的老版本 websockets；requirements 钉 14.2 亦安全）；测试增加 socks_proxy 回归环境（25/25 通过）；实机三层验证（裸 socket 101 / Node ws pong / Python pong）全通；实例已重启加载修复。教训：公司代理环境下任何 localhost 客户端都需显式绕过（requests=trust_env、websockets=proxy=None）。",
+    "timestamp": "2026-09-26T10:30:25.543Z",
+    "tags": [
+      "bridge",
+      "copilot",
+      "node",
+      "proxy",
+      "python"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-26T10:30:25.543Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-26T10:30:25.543Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [
+        "python",
+        "rust",
+        "websocket"
+      ],
+      "patterns": [],
+      "concepts": []
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-26T10:30:25.505Z"
+    }
   }
 ]
