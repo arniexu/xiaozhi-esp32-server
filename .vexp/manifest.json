@@ -1,7 +1,7 @@
 {
   "file_hashes": {
-    "CLAUDE.md": "12b142c2f6e921621f78daf37b0bb286d378724c97040e35cadffdc3b5a6b7a2",
-    "GEMINI.md": "12b142c2f6e921621f78daf37b0bb286d378724c97040e35cadffdc3b5a6b7a2",
+    "CLAUDE.md": "a4a991338a4abcd587cfff636d7db54b7561f45b51feadcc4b1190f34d21b885",
+    "GEMINI.md": "a4a991338a4abcd587cfff636d7db54b7561f45b51feadcc4b1190f34d21b885",
     "README_en.md": "5f92bec0a465b5a5974e39b6324c8440a668b7e074f8a1928c45c2ae543a1a52",
     "main/README_en.md": "1f8596a11347cbfa74aafaa2c2a0e62e992279fa74692f0e1813db2473153a31",
     "main/manager-api/Dockerfile": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
@@ -445,6 +445,10 @@
     "main/xiaozhi-server/core/providers/vad/silero.py": "b86a26b231dda77bb09a9e6341243f1f884684975e394484a5a3614ec3edafef",
     "main/xiaozhi-server/core/providers/vllm/base.py": "85fea25e7c3193ed3a85595fae25bbe13372ecc2fd1a3eeb0c73c6471d7c453a",
     "main/xiaozhi-server/core/providers/vllm/openai.py": "b42d5e3df57ee10fb9810594d3521428f78d148b44a11cb54b8b0e6c356d88c2",
+    "main/xiaozhi-server/core/utils/asr.py": "c7f1414318c160f5dded30b1556eff6675792fb37842fde1436894ceb5b61fc6",
+    "main/xiaozhi-server/core/utils/cache/config.py": "1e4b31e16a5f65d9db6c96736fbce91865048ce32154bf6d59a1b28ae090766e",
+    "main/xiaozhi-server/core/utils/cache/strategies.py": "7f69fd9e8eada52cc728a94d31e3a35d8aa353d4bb4f6d71baa5e15d3d5662af",
+    "main/xiaozhi-server/core/utils/p3.py": "699200989b3619963f74afdedf5dc68e5bc5a88292de433a8b6086a2ac8adc3f",
     "main/xiaozhi-server/models/SenseVoiceSmall/demo.py": "1ea1911ac2673dedabd38f7c5a561e29abb4053765f1bcec662a67296e2f93a9",
     "main/xiaozhi-server/models/snakers4_silero-vad/hubconf.py": "7e248258b6eb4ab49adf15f1acef9071f92d224f115ef9aea6949268c2de70ff",
     "main/xiaozhi-server/models/snakers4_silero-vad/src/silero_vad/__init__.py": "6a6f5b7050a211f285e58709c876a8b48189c3acd84afb7c1c58bf47a5724971",
@@ -472,8 +476,8 @@
     "main/xiaozhi-server/test_face_direct.py": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
     "main/xiaozhi-server/test_websocket_format.py": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"
   },
-  "indexed_at_commit": "5b1616ca4b0ea165f43b185ef616cdb516f6f94f",
-  "indexed_at_timestamp": "2026-09-24T05:15:14.167258563+00:00",
+  "indexed_at_commit": "b45554d1ab6134b27c7b2ac901b2f99e8cd721f6",
+  "indexed_at_timestamp": "2026-09-26T05:50:26.657820585+00:00",
   "languages": {
     "css": {
       "calls": 0,
@@ -492,8 +496,8 @@
       "nodes": 120
     },
     "python": {
-      "calls": 440,
-      "nodes": 755
+      "calls": 510,
+      "nodes": 766
     },
     "sql": {
       "calls": 0,
@@ -507,9 +511,9 @@
   "parser_version": "3.2.5",
   "schema_version": 3,
   "stats": {
-    "total_edges": 4983,
-    "total_files": 471,
-    "total_nodes": 1992
+    "total_edges": 5057,
+    "total_files": 475,
+    "total_nodes": 2003
   },
   "vexp_version": "3.2.5"
 }
