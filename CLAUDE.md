@@ -5,20 +5,21 @@
 This file contains project context and decisions. AI assistants should read this file for context. MCP tools are an optional enhancement for richer interaction when connected.
 
 ## Project Context
-- **Total Decisions:** 65
-- **Known Topics:** xiaozhi, context-recall, product, memory, api, deploy, decision, python, companion, llm, sqlite, edge, deepseek, architecture, single-device
+- **Total Decisions:** 66
+- **Known Topics:** xiaozhi, context-recall, product, memory, deploy, api, decision, python, companion, llm, sqlite, edge, deepseek, architecture, single-device
 
 ## Current State
 **Repository:** xiaozhi-esp32-server
 **Project Type:** Software Project
 **Branch:** main
+**Tracking:** ahead 2, behind 0
 
 **Recent Commits:**
+- `ed89635 chore(continuity)：同步（跨机部署决策 65 条）`
+- `d29fe2d docs(copilot-bridge)：跨机部署与服务器迁移方案（§11：同机/SSH隧道/直连三拓扑）`
 - `abdb899 remove the latest papers on`
 - `4df43da chore(continuity)：同步（桥接代理修复决策 64 条）`
 - `0a213e2 fix(copilot-bridge)：强制直连 localhost 桥接（禁用 websockets 环境代理，防 socks_proxy 劫持）+ 回归测试`
-- `301c3ad chore(vexp)：刷新索引清单`
-- `de44de1 chore(continuity)：决策库同步（63 条；Copilot 桥接 P1/P2）`
 
 **Working Tree:**
 - M .continuity/decisions.json
@@ -65,25 +66,25 @@ Describe how this repository prefers to work with AI assistants.
 ---
 
 ## Recent Decisions
-1. **decision-43da2780** (9/27/2026) [bridge, copilot]
+1. **decision-73dfc2ce** (9/27/2026) [bridge, copilot]
+   - Q: （2026-09-27）A/B/C 三拓扑都要支持，不限定时如何补齐跨机直连（拓扑 C）？
+   - A: 已落地：扩展 v0.2.0 新增 xiaozhiBridge.bindAddress（默认 127.0.0.1）与 xiaozhiBridge.token（非空校验；不符回 error 后断开 4001）；服务端 copilot_bridge 新增 token（随 request/cancel 下发）；install-remote.sh 清理旧版本。测试 28/28（新增令牌一致/不符）。三拓扑：A 同机默认；B SSH 隧道零配置；C 直连两侧配置即可。当前实例已重启加载（token 默认空=行为不变）；窗口 reload 后加载 v0.2.0。
+
+2. **decision-43da2780** (9/27/2026) [bridge, copilot]
    - Q: （2026-09-27）小智服务器切到其他服务器时，Copilot 桥接如何部署？
    - A: 三拓扑定案并写入 docs/copilot-bridge-plan.md §11：A=同机零改动（新机装扩展 install-remote.sh/reload + 服务端 url 保持 localhost + 重启）；B=分机+SSH隧道【推荐、零代码】(X 上 ssh -L 8767:127.0.0.1:8767 user@Y，或 Y 上 ssh -R 8767:127.0.0.1:8767 user@X；user systemd 常驻 + linger；服务端配置不变)；C=分机+直连（需新增扩展 xiaozhiBridge.bindAddress + 共享令牌校验，服务端 url 指向 Y，尚未实现）。首要前提：新服务器跑本 fork 代码（官方/第三方服无服务端一半）。共同限制：扩展随 VS Code 窗口存活；配额跟随登录账号；会话在扩展内存（重启丢上下文）；设备/固件零改动。
 
-2. **decision-d711f3fd** (9/26/2026) [bridge, copilot]
+3. **decision-d711f3fd** (9/26/2026) [bridge, copilot]
    - Q: （2026-09-26）桥接冒烟发现：websockets>=15 默认读取环境代理，公司网络 socks_proxy 劫持 localhost 连接（InvalidProxy/握手失败）？
    - A: 已修复：copilotHandle 连接桥接时显式 proxy=None 强制直连（inspect 兼容无该参数的老版本 websockets；requirements 钉 14.2 亦安全）；测试增加 socks_proxy 回归环境（25/25 通过）；实机三层验证（裸 socket 101 / Node ws pong / Python pong）全通；实例已重启加载修复。教训：公司代理环境下任何 localhost 客户端都需显式绕过（requests=trust_env、websockets=proxy=None）。
 
-3. **decision-052ff83e** (9/26/2026) [bridge, copilot]
+4. **decision-052ff83e** (9/26/2026) [bridge, copilot]
    - Q: （2026-09-26）Copilot 桥接 P2：VS Code 扩展实现与安装？
    - A: tools/vscode-copilot-bridge/ 完成：WS 桥接服务（ws，仅 127.0.0.1:8767；协议 request/cancel ↔ chunk/done/error）+ BridgeCore（每 session 多轮历史、镜像注入 @xiaozhi 面板、2s 超时回退直连、配额等错误中文化）+ SpeechFilter（流式去代码围栏/Markdown、限长截断；已修复跨 chunk 反引号 run 拆分 bug）+ @xiaozhi 聊天参与者 + 状态栏/命令/配置项；tsc 编译通过；install-remote.sh 已安装至 ~/.vscode-server/extensions/arniexu.xiaozhi-copilot-bridge-0.1.0。P3 联调前置：①VS Code reload 窗口（扩展生效）；②重启 xiaozhi-server（加载 copilot_bridge 配置与 copilotHandle）；③设备说『问 Copilot …』验证（首次需授权 LM 访问；注意 402 配额风险）。
 
-4. **decision-d0fb258b** (9/26/2026) [api, bridge]
+5. **decision-d0fb258b** (9/26/2026) [api, bridge]
    - Q: （2026-09-26）Copilot 桥接：做个小智插件把 GitHub Copilot Chat 与小智设备互通？
    - A: 方案定稿（需求问答）+服务端 P1 完成。定稿口径：可切换模式（『问 Copilot…』进入/『退出 Copilot』结束，平时保持现有大脑）；接入=VS Code 扩展（Language Model API + @xiaozhi 聊天参与者），非 CLI 无头；拓扑=同机 bmcdev5 localhost（扩展监听 ws://127.0.0.1:8767，服务端为客户端）；播报=口语化限长（去 Markdown/代码块）；会话=每设备多轮；工具=纯问答（不开文件/命令）。P1 交付：core/handle/copilotHandle.py（关键词匹配/模式状态/WS 转发/TTS 信封流式播报/打断作废/降级提示）+ receiveAudioHandle.startToChat 分叉（新增 source 区分真人与系统伪输入；唤醒问候/超时结束语不参与）+ config.yaml 与 config_singleton.yaml 的 copilot_bridge 配置块 + test/test_copilot_bridge.py 25/25 通过 + 设计文档 docs/copilot-bridge-plan.md。P2=VS Code 扩展（tools/vscode-copilot-bridge/，进行中）。注意：copilot CLI 无头试跑报 402 月度配额超限，...
-
-5. **decision-bdb40ea7** (9/24/2026) [cache, cloud]
-   - Q: （2026-09-24）LLM 投放定调：均 cloud、首选 DeepSeek？
-   - A: 用户定调：云端 LLM 均使用、首选 DeepSeek（V4.1-Flash）。与现行一致：单例联调已用 DeepSeekLLM（2026-09-21）+ 阿里云流式 ASR；本定调泛化到全部线路的模型选型。官网核记（2026-09-24）：model 名 deepseek-flash；价格每 M tokens —— cache hit $0.006、miss $0.3、输出 $1.2（峰时），谷时减半；峰时=周一至五北京 09:00–12:00/14:00–18:00，其余全为谷时（含周末、节假日、晚间——睡前场景天然谷时）；并发上限 2500；支持 tools/JSON/Vision。语音集成注意：默认思考模式（effort high）需显式关闭（extra_body={"thinking":{"type":"disabled"}}）；思考模式下 temperature/frequency_penalty 无效；带 tools 请求 reasoning_content 必须回传否则 400；仓库 openai 型 provider 暂无 extra_body 透传（待需要时补）。
 
 ---
 
