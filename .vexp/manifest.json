@@ -357,7 +357,7 @@
     "main/xiaozhi-server/core/handle/receiveAudioHandle.py": "e3e20d978fbea37825016b27aaee071807afe84a762bc0e9ba74195234754170",
     "main/xiaozhi-server/core/handle/reportHandle.py": "89d532848e71b4db1322a45701f0d75af22e28904b6570078629c0e3f32a67b2",
     "main/xiaozhi-server/core/handle/sendAudioHandle.py": "bd6ea1960739e556685c321a6c849d1ba78a86fddbcd52506eea1394d8956281",
-    "main/xiaozhi-server/core/handle/textHandle.py": "66fa5c74bd09d79ad1585320257e4ea3ef3112f00f9d0b811cc625fb3f35bad8",
+    "main/xiaozhi-server/core/handle/textHandle.py": "d14798c8bc6f3e5e94e3caf5b8a7c357e3466a63b79672129081c9e18237f484",
     "main/xiaozhi-server/core/providers/asr/aliyun.py": "9c8583cfdbd747a32bfb639ac406b02d0aa587d4629d86f8844894198df9a1e4",
     "main/xiaozhi-server/core/providers/asr/aliyun_stream.py": "f249323d030be08a80399c2f33011747ae8451721d1f9e73ee5fb9ba019681e3",
     "main/xiaozhi-server/core/providers/asr/baidu.py": "695ffd3285487dc412f30dbfb29402314bf55a08cff24f766447951759c60bb9",
@@ -476,8 +476,8 @@
     "main/xiaozhi-server/test_face_direct.py": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
     "main/xiaozhi-server/test_websocket_format.py": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"
   },
-  "indexed_at_commit": "b45554d1ab6134b27c7b2ac901b2f99e8cd721f6",
-  "indexed_at_timestamp": "2026-09-26T05:50:26.657820585+00:00",
+  "indexed_at_commit": "abdb899f8bc8ff4a983b0d3a12e84aef27a6bc46",
+  "indexed_at_timestamp": "2026-09-26T14:01:07.810358224+00:00",
   "languages": {
     "css": {
       "calls": 0,
@@ -496,7 +496,7 @@
       "nodes": 120
     },
     "python": {
-      "calls": 510,
+      "calls": 531,
       "nodes": 766
     },
     "sql": {
@@ -511,7 +511,7 @@
   "parser_version": "3.2.5",
   "schema_version": 3,
   "stats": {
-    "total_edges": 5057,
+    "total_edges": 5078,
     "total_files": 475,
     "total_nodes": 2003
   },
