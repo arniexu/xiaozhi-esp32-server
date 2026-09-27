@@ -5,25 +5,25 @@
 This file contains project context and decisions. AI assistants should read this file for context. MCP tools are an optional enhancement for richer interaction when connected.
 
 ## Project Context
-- **Total Decisions:** 64
-- **Known Topics:** xiaozhi, context-recall, product, memory, api, decision, deploy, python, companion, llm, sqlite, edge, deepseek, architecture, single-device
+- **Total Decisions:** 65
+- **Known Topics:** xiaozhi, context-recall, product, memory, api, deploy, decision, python, companion, llm, sqlite, edge, deepseek, architecture, single-device
 
 ## Current State
 **Repository:** xiaozhi-esp32-server
 **Project Type:** Software Project
 **Branch:** main
-**Tracking:** ahead 5, behind 0
 
 **Recent Commits:**
+- `abdb899 remove the latest papers on`
+- `4df43da chore(continuity)：同步（桥接代理修复决策 64 条）`
+- `0a213e2 fix(copilot-bridge)：强制直连 localhost 桥接（禁用 websockets 环境代理，防 socks_proxy 劫持）+ 回归测试`
 - `301c3ad chore(vexp)：刷新索引清单`
 - `de44de1 chore(continuity)：决策库同步（63 条；Copilot 桥接 P1/P2）`
-- `ac25f40 docs：伴侣/日记/角色脑暴/单人场景方案 + 论文 PDF（30 篇）归档`
-- `3760991 feat(tools)：Copilot 桥接 VS Code 扩展（@xiaozhi 参与者/SpeechFilter/远程安装脚本）`
-- `4f3551e feat(copilot-bridge)：服务端桥接（模式切换/WS 转发/流式播报/降级）+ 配置 + 测试 25/25 + 设计文档`
 
 **Working Tree:**
 - M .continuity/decisions.json
 - M .continuity/decisions.jsonl
+- M .vexp/manifest.json
 
 ## Session Context
 **Goals:**
@@ -65,28 +65,28 @@ Describe how this repository prefers to work with AI assistants.
 ---
 
 ## Recent Decisions
-1. **decision-d711f3fd** (9/26/2026) [bridge, copilot]
+1. **decision-43da2780** (9/27/2026) [bridge, copilot]
+   - Q: （2026-09-27）小智服务器切到其他服务器时，Copilot 桥接如何部署？
+   - A: 三拓扑定案并写入 docs/copilot-bridge-plan.md §11：A=同机零改动（新机装扩展 install-remote.sh/reload + 服务端 url 保持 localhost + 重启）；B=分机+SSH隧道【推荐、零代码】(X 上 ssh -L 8767:127.0.0.1:8767 user@Y，或 Y 上 ssh -R 8767:127.0.0.1:8767 user@X；user systemd 常驻 + linger；服务端配置不变)；C=分机+直连（需新增扩展 xiaozhiBridge.bindAddress + 共享令牌校验，服务端 url 指向 Y，尚未实现）。首要前提：新服务器跑本 fork 代码（官方/第三方服无服务端一半）。共同限制：扩展随 VS Code 窗口存活；配额跟随登录账号；会话在扩展内存（重启丢上下文）；设备/固件零改动。
+
+2. **decision-d711f3fd** (9/26/2026) [bridge, copilot]
    - Q: （2026-09-26）桥接冒烟发现：websockets>=15 默认读取环境代理，公司网络 socks_proxy 劫持 localhost 连接（InvalidProxy/握手失败）？
    - A: 已修复：copilotHandle 连接桥接时显式 proxy=None 强制直连（inspect 兼容无该参数的老版本 websockets；requirements 钉 14.2 亦安全）；测试增加 socks_proxy 回归环境（25/25 通过）；实机三层验证（裸 socket 101 / Node ws pong / Python pong）全通；实例已重启加载修复。教训：公司代理环境下任何 localhost 客户端都需显式绕过（requests=trust_env、websockets=proxy=None）。
 
-2. **decision-052ff83e** (9/26/2026) [bridge, copilot]
+3. **decision-052ff83e** (9/26/2026) [bridge, copilot]
    - Q: （2026-09-26）Copilot 桥接 P2：VS Code 扩展实现与安装？
    - A: tools/vscode-copilot-bridge/ 完成：WS 桥接服务（ws，仅 127.0.0.1:8767；协议 request/cancel ↔ chunk/done/error）+ BridgeCore（每 session 多轮历史、镜像注入 @xiaozhi 面板、2s 超时回退直连、配额等错误中文化）+ SpeechFilter（流式去代码围栏/Markdown、限长截断；已修复跨 chunk 反引号 run 拆分 bug）+ @xiaozhi 聊天参与者 + 状态栏/命令/配置项；tsc 编译通过；install-remote.sh 已安装至 ~/.vscode-server/extensions/arniexu.xiaozhi-copilot-bridge-0.1.0。P3 联调前置：①VS Code reload 窗口（扩展生效）；②重启 xiaozhi-server（加载 copilot_bridge 配置与 copilotHandle）；③设备说『问 Copilot …』验证（首次需授权 LM 访问；注意 402 配额风险）。
 
-3. **decision-d0fb258b** (9/26/2026) [api, bridge]
+4. **decision-d0fb258b** (9/26/2026) [api, bridge]
    - Q: （2026-09-26）Copilot 桥接：做个小智插件把 GitHub Copilot Chat 与小智设备互通？
    - A: 方案定稿（需求问答）+服务端 P1 完成。定稿口径：可切换模式（『问 Copilot…』进入/『退出 Copilot』结束，平时保持现有大脑）；接入=VS Code 扩展（Language Model API + @xiaozhi 聊天参与者），非 CLI 无头；拓扑=同机 bmcdev5 localhost（扩展监听 ws://127.0.0.1:8767，服务端为客户端）；播报=口语化限长（去 Markdown/代码块）；会话=每设备多轮；工具=纯问答（不开文件/命令）。P1 交付：core/handle/copilotHandle.py（关键词匹配/模式状态/WS 转发/TTS 信封流式播报/打断作废/降级提示）+ receiveAudioHandle.startToChat 分叉（新增 source 区分真人与系统伪输入；唤醒问候/超时结束语不参与）+ config.yaml 与 config_singleton.yaml 的 copilot_bridge 配置块 + test/test_copilot_bridge.py 25/25 通过 + 设计文档 docs/copilot-bridge-plan.md。P2=VS Code 扩展（tools/vscode-copilot-bridge/，进行中）。注意：copilot CLI 无头试跑报 402 月度配额超限，...
 
-4. **decision-bdb40ea7** (9/24/2026) [cache, cloud]
+5. **decision-bdb40ea7** (9/24/2026) [cache, cloud]
    - Q: （2026-09-24）LLM 投放定调：均 cloud、首选 DeepSeek？
    - A: 用户定调：云端 LLM 均使用、首选 DeepSeek（V4.1-Flash）。与现行一致：单例联调已用 DeepSeekLLM（2026-09-21）+ 阿里云流式 ASR；本定调泛化到全部线路的模型选型。官网核记（2026-09-24）：model 名 deepseek-flash；价格每 M tokens —— cache hit $0.006、miss $0.3、输出 $1.2（峰时），谷时减半；峰时=周一至五北京 09:00–12:00/14:00–18:00，其余全为谷时（含周末、节假日、晚间——睡前场景天然谷时）；并发上限 2500；支持 tools/JSON/Vision。语音集成注意：默认思考模式（effort high）需显式关闭（extra_body={"thinking":{"type":"disabled"}}）；思考模式下 temperature/frequency_penalty 无效；带 tools 请求 reasoning_content 必须回传否则 400；仓库 openai 型 provider 暂无 extra_body 透传（待需要时补）。
 
-5. **decision-4e50a394** (9/24/2026) [companion, defer]
-   - Q: （2026-09-24）100 单片机联网多 agent idea 是否采纳？
-   - A: 用户判定：暂时搁置（不采纳、不投入）。本会话评估已完成并归档：cloud-only + DeepSeek 计价下，集中式（共享服务器）一次性 ¥1.5–4 万、月约 ¥200–600；分体式（每台 Pi5 跑单例）一次性 ¥8–12 万；片内直接跑 LLM 不可行（ESP32 512KB 内存，最小实用本地模型需 8GB 级）。归入外壳层备选，与 decision-e8425ce4（多设备多角色搁置）一致；单设备线路（内核 C0/单例/伴侣）不受影响。重启时可直接复用成本锚点与计价结论。
-
 ---
 
-*Auto-generated by Continuity | Updated: 2026-09-26*
+*Auto-generated by Continuity | Updated: 2026-09-27*
 
 <!-- END CONTINUITY AUTO-GENERATED CONTENT -->
