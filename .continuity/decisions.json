@@ -3567,5 +3567,58 @@
       "source": "cli",
       "timestamp": "2026-09-27T12:15:31.028Z"
     }
+  },
+  {
+    "id": "8eb217a5-41fa-45ab-8c13-274d34dab2f4",
+    "question": "（2026-09-27）把日常维护集成进 install-singleton-service.sh？",
+    "answer": "已实现：脚本改为子命令式（不带参数=install，向后兼容）：install/start/stop/restart/status/logs/uninstall/help；除 install 外命令带未安装守卫与提示；install 后按运行状态给出 start/restart 提示；uninstall 仅动 unit 文件不动数据。文档同步：singleton-mode-deploy §4（改子命令用法）、singleton-mode-start（首次启动说明+§2 速查表加脚本注）。本机未实际安装（开发机仍 nohup），已验证 bash -n / help / 未安装守卫 / 未知命令。",
+    "timestamp": "2026-09-27T12:24:33.330Z",
+    "tags": [
+      "script",
+      "service",
+      "singleton"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-27T12:24:33.330Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-27T12:24:33.331Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [
+        "rest"
+      ],
+      "patterns": [
+        "singleton"
+      ],
+      "concepts": []
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-27T12:24:33.294Z"
+    }
   }
 ]
