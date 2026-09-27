@@ -52,8 +52,8 @@ check_service_files() {
         missing_files+=("manager-web.service")
     fi
     
-    if [ ! -f "$PROJECT_ROOT/main/xixaozhi-server.service" ]; then
-        missing_files+=("xixaozhi-server.service")
+    if [ ! -f "$PROJECT_ROOT/main/xiaozhi-server.service" ]; then
+        missing_files+=("xiaozhi-server.service")
     fi
     
     # 检查 mcp-endpoint-server 的 docker-compose 文件
@@ -84,9 +84,9 @@ install_services() {
     print_info "安装 manager-web.service..."
     cp "$PROJECT_ROOT/manager-web.service" "$SYSTEMD_DIR/"
     
-    # 安装 xiaozhi-server.service (重命名)
+    # 安装 xiaozhi-server.service
     print_info "安装 xiaozhi-server.service..."
-    cp "$PROJECT_ROOT/main/xixaozhi-server.service" "$SYSTEMD_DIR/xiaozhi-server.service"
+    cp "$PROJECT_ROOT/main/xiaozhi-server.service" "$SYSTEMD_DIR/xiaozhi-server.service"
     
     print_success "服务文件安装完成"
 }

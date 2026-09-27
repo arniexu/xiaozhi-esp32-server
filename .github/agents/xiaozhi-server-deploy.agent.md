@@ -34,7 +34,7 @@ user-invocable: true
 | 端口冲突 | **TCP 8000 已被 `/home/xuqj/pyserver`（Django+gunicorn）占用**（用户自己的服务）→ xiaozhi-server 默认 WS 端口冲突，**禁止擅自停 pyserver**，必须先报告并由用户选择：改 xiaozhi 端口，或经同意后停 pyserver |
 | 当前状态 | 截至 2026-09-12：未安装任何 xiaozhi/manager systemd 单元，未发现相关进程；docker 状态需 `sudo` 复核（**尚未部署**） |
 | 端口约定 | 8000 WS / 8001 智控台 web / 8002 manager-api / 8003 HTTP（视觉+单机 OTA）/ 8004 mcp-endpoint / 3306 MySQL / 6379 Redis |
-| 路径陷阱 | `install-all-services.sh` 与 `manager-api.service`、`manager-web.service`、`main/xixaozhi-server.service` **硬编码 `/home/xuqianjin/...` 且 `User=root`** → 使用前必须逐行改写为 `/home/xuqj/...` 并以 `xuqj` 运行 |
+| 路径陷阱 | `install-all-services.sh` 与 `manager-api.service`、`manager-web.service`、`main/xiaozhi-server.service` **硬编码 `/home/xuqianjin/...` 且 `User=root`** → 使用前必须逐行改写为 `/home/xuqj/...` 并以 `xuqj` 运行 |
 | 文档 | `docs/Deployment.md`（仅 server）、`docs/Deployment_all.md`（全模块）、`main/README.md` §6；`docker-setup.sh` 为官方下载脚本（依赖 GitHub raw，网络不通时用仓库内文件或 modelscope 线路） |
 | 配置 | `main/xiaozhi-server/data/.config.yaml` 对源码和 Docker 运行都**必需**；当前目录不存在。`config.yaml` 含密钥相关配置项（是否已填真实值由用户确认，**一律禁止回显**） |
 | 资产 | `models/SenseVoiceSmall/model.pt` 当前不存在；选择本地 FunASR 时必须下载并校验，选择云 ASR 时不得无谓下载 |

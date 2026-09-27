@@ -42,7 +42,7 @@ Pi 上两个 user 级 systemd 服务：
 - **硬件**：官方 27W USB-C 电源、主动散热；存储建议 NVMe（M.2 HAT+），底线 A2 级 32GB+ SD
 - **服务**：两个 user 级 systemd + linger（开机自启，无需登录）；CR 用自带 `scripts/install-user-service.sh`
 - **已知修正项**：
-  - `main/xixaozhi-server.service`：**移除 `Requires=manager-web.service`**、修正 WorkingDirectory/User、ExecStart 改用 venv 解释器
+  - `main/xiaozhi-server.service`（2026-09-27 修正上游笔误命名）：**移除 `Requires=manager-web.service`**、修正 WorkingDirectory/User、ExecStart 改用 venv 解释器
   - 依赖裁剪（可选）：不启用 FunASR 时可从 `requirements.txt` 移除 torch/funasr/modelscope 等（省磁盘，需回归验证）
 - **备份**：定期备份 CR 数据目录 `~/.local/share/knowledge-agent-service`
 
