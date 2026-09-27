@@ -3512,5 +3512,60 @@
       "source": "cli",
       "timestamp": "2026-09-27T12:04:07.949Z"
     }
+  },
+  {
+    "id": "9a36f685-8363-41d8-a8e1-ecf03ccf3381",
+    "question": "（2026-09-27）main/xixaozhi-server.service 文件名是不是搞错了（xixaozhi→xiaozhi）？",
+    "answer": "确认：上游提交 6cc3874 带入的笔误文件名（内容拼写正确）。功能上 install-all-services.sh 复制安装时会落为正确的 xiaozhi-server.service 单元名（本机 /etc/systemd/system/xiaozhi-server.service 即正确名字），但仓库源文件名笔误易误导。已处置：git mv 重命名为 main/xiaozhi-server.service + 同步 3 处引用（install-all-services.sh 存在性检查/安装路径/注释、.github/agents/xiaozhi-server-deploy.agent.md、docs/singleton-mode-plan.md）；内容层旧坑（/home/xuqianjin 路径、User=root、sudo python3、Requires=manager-web）保留待单例改造。",
+    "timestamp": "2026-09-27T12:15:31.063Z",
+    "tags": [
+      "fix",
+      "repo",
+      "service"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-27T12:15:31.063Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-27T12:15:31.063Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [
+        "python",
+        "git",
+        "github"
+      ],
+      "patterns": [
+        "singleton"
+      ],
+      "concepts": []
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-27T12:15:31.028Z"
+    }
   }
 ]
