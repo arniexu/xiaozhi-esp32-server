@@ -3424,5 +3424,49 @@
       "source": "cli",
       "timestamp": "2026-09-27T10:27:02.611Z"
     }
+  },
+  {
+    "id": "73dfc2ce-8a00-4036-b22a-1969626111b7",
+    "question": "（2026-09-27）A/B/C 三拓扑都要支持，不限定时如何补齐跨机直连（拓扑 C）？",
+    "answer": "已落地：扩展 v0.2.0 新增 xiaozhiBridge.bindAddress（默认 127.0.0.1）与 xiaozhiBridge.token（非空校验；不符回 error 后断开 4001）；服务端 copilot_bridge 新增 token（随 request/cancel 下发）；install-remote.sh 清理旧版本。测试 28/28（新增令牌一致/不符）。三拓扑：A 同机默认；B SSH 隧道零配置；C 直连两侧配置即可。当前实例已重启加载（token 默认空=行为不变）；窗口 reload 后加载 v0.2.0。",
+    "timestamp": "2026-09-27T10:32:54.109Z",
+    "tags": [
+      "bridge",
+      "copilot",
+      "deploy"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-27T10:32:54.109Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-27T10:32:54.110Z",
+        "action": "created"
+      }
+    ],
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-27T10:32:54.077Z"
+    }
   }
 ]
