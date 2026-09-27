@@ -75,6 +75,12 @@ check_service_files() {
 # 安装服务文件
 install_services() {
     print_info "开始安装服务文件..."
+
+    # 防重复安装：若本机已有用户级（单例模式）xiaozhi-server 服务，提示双实例风险
+    if compgen -G "/home/*/.config/systemd/user/xiaozhi-server.service" >/dev/null; then
+        print_warning "检测到用户级单例安装（/home/*/.config/systemd/user/xiaozhi-server.service）："
+        print_warning "继续系统级安装会形成用户级+系统级双实例；请先移除用户级 unit（systemctl --user disable xiaozhi-server）。"
+    fi
     
     # 安装 manager-api.service
     print_info "安装 manager-api.service..."
