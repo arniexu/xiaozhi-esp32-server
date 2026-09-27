@@ -5,24 +5,29 @@
 This file contains project context and decisions. AI assistants should read this file for context. MCP tools are an optional enhancement for richer interaction when connected.
 
 ## Project Context
-- **Total Decisions:** 68
+- **Total Decisions:** 69
 - **Known Topics:** xiaozhi, context-recall, product, memory, deploy, api, decision, python, companion, llm, sqlite, edge, deepseek, architecture, single-device
 
 ## Current State
 **Repository:** xiaozhi-esp32-server
 **Project Type:** Software Project
 **Branch:** main
-**Tracking:** ahead 1, behind 0
+**Tracking:** ahead 3, behind 0
 
 **Recent Commits:**
+- `2af5440 chore(continuity)：同步（服务文件命名修正）`
+- `abe8d56 fix(services)：修正上游笔误 main/xixaozhi-server.service → main/xiaozhi-server.service，同步安装脚本/部署 agent/单例方案引用`
 - `b3624ed chore(continuity)：同步（临时文件核查决策入库）`
 - `fa9b71a chore(vexp)：刷新索引清单`
 - `2adce9c chore(continuity)：CLAUDE/GEMINI 同步（66 条）`
-- `2d2bac4 chore(agents)：.cursorrules 同步（跨机直连决策）`
-- `fe800ac chore(continuity)：同步（跨机直连支持决策入库）`
 
 **Working Tree:**
+- M .continuity/decisions.json
+- M .continuity/decisions.jsonl
+- M .cursorrules
 - M .vexp/manifest.json
+- M CLAUDE.md
+- M GEMINI.md
 
 ## Session Context
 **Goals:**
@@ -64,25 +69,25 @@ Describe how this repository prefers to work with AI assistants.
 ---
 
 ## Recent Decisions
-1. **decision-9a36f685** (9/27/2026) [fix, repo]
+1. **decision-8eb217a5** (9/27/2026) [script, service]
+   - Q: （2026-09-27）把日常维护集成进 install-singleton-service.sh？
+   - A: 已实现：脚本改为子命令式（不带参数=install，向后兼容）：install/start/stop/restart/status/logs/uninstall/help；除 install 外命令带未安装守卫与提示；install 后按运行状态给出 start/restart 提示；uninstall 仅动 unit 文件不动数据。文档同步：singleton-mode-deploy §4（改子命令用法）、singleton-mode-start（首次启动说明+§2 速查表加脚本注）。本机未实际安装（开发机仍 nohup），已验证 bash -n / help / 未安装守卫 / 未知命令。
+
+2. **decision-9a36f685** (9/27/2026) [fix, repo]
    - Q: （2026-09-27）main/xixaozhi-server.service 文件名是不是搞错了（xixaozhi→xiaozhi）？
    - A: 确认：上游提交 6cc3874 带入的笔误文件名（内容拼写正确）。功能上 install-all-services.sh 复制安装时会落为正确的 xiaozhi-server.service 单元名（本机 /etc/systemd/system/xiaozhi-server.service 即正确名字），但仓库源文件名笔误易误导。已处置：git mv 重命名为 main/xiaozhi-server.service + 同步 3 处引用（install-all-services.sh 存在性检查/安装路径/注释、.github/agents/xiaozhi-server-deploy.agent.md、docs/singleton-mode-plan.md）；内容层旧坑（/home/xuqianjin 路径、User=root、sudo python3、Requires=manager-web）保留待单例改造。
 
-2. **decision-ff400f9a** (9/27/2026) [disk, tmp]
+3. **decision-ff400f9a** (9/27/2026) [disk, tmp]
    - Q: （2026-09-27）xiaozhi-server 运行中会产生大量临时文件吗（Pi/SD 卡写放大关心）？
    - A: 实测+代码核查：默认不会。①开关=顶层 delete_audio（config.yaml:59=true；modules_initialize.py 读取后传给 TTS/ASR 的 delete_audio_file 参数）：true=音频全程内存（TTS to_tts 直接返回 bytes、不写文件），ASR 临时 wav 处理后即删，流式 ASR（当前 AliyunStreamASR）完全不落盘；②实际落盘仅有：日志 tmp/server.log（loguru rotation 10MB/文件 + retention 30 天；本机 6 天仅 285KB）、uploads/（视觉/人脸图片按需上传，现 1 张 160K，按日期建目录）、data/context_recall/<device>/turns.jsonl（按轮追加文本，KB 级）、data/ 下小 JSON；③唯一会'大量产生'的场景=把 delete_audio 设为 false（调试用）：TTS 每句写 tts-<日期>@<uuid> 文件到 output_dir: tmp/ 且无自动清理，ASR 临时 wav 也保留（fun_local 自带宽限检查）；④结论：默认配置写放大极小，Pi/SD 卡友好；若要进一步减写可提高 log_level 或定期清 tmp。
 
-3. **decision-73dfc2ce** (9/27/2026) [bridge, copilot]
+4. **decision-73dfc2ce** (9/27/2026) [bridge, copilot]
    - Q: （2026-09-27）A/B/C 三拓扑都要支持，不限定时如何补齐跨机直连（拓扑 C）？
    - A: 已落地：扩展 v0.2.0 新增 xiaozhiBridge.bindAddress（默认 127.0.0.1）与 xiaozhiBridge.token（非空校验；不符回 error 后断开 4001）；服务端 copilot_bridge 新增 token（随 request/cancel 下发）；install-remote.sh 清理旧版本。测试 28/28（新增令牌一致/不符）。三拓扑：A 同机默认；B SSH 隧道零配置；C 直连两侧配置即可。当前实例已重启加载（token 默认空=行为不变）；窗口 reload 后加载 v0.2.0。
 
-4. **decision-43da2780** (9/27/2026) [bridge, copilot]
+5. **decision-43da2780** (9/27/2026) [bridge, copilot]
    - Q: （2026-09-27）小智服务器切到其他服务器时，Copilot 桥接如何部署？
    - A: 三拓扑定案并写入 docs/copilot-bridge-plan.md §11：A=同机零改动（新机装扩展 install-remote.sh/reload + 服务端 url 保持 localhost + 重启）；B=分机+SSH隧道【推荐、零代码】(X 上 ssh -L 8767:127.0.0.1:8767 user@Y，或 Y 上 ssh -R 8767:127.0.0.1:8767 user@X；user systemd 常驻 + linger；服务端配置不变)；C=分机+直连（需新增扩展 xiaozhiBridge.bindAddress + 共享令牌校验，服务端 url 指向 Y，尚未实现）。首要前提：新服务器跑本 fork 代码（官方/第三方服无服务端一半）。共同限制：扩展随 VS Code 窗口存活；配额跟随登录账号；会话在扩展内存（重启丢上下文）；设备/固件零改动。
-
-5. **decision-d711f3fd** (9/26/2026) [bridge, copilot]
-   - Q: （2026-09-26）桥接冒烟发现：websockets>=15 默认读取环境代理，公司网络 socks_proxy 劫持 localhost 连接（InvalidProxy/握手失败）？
-   - A: 已修复：copilotHandle 连接桥接时显式 proxy=None 强制直连（inspect 兼容无该参数的老版本 websockets；requirements 钉 14.2 亦安全）；测试增加 socks_proxy 回归环境（25/25 通过）；实机三层验证（裸 socket 101 / Node ws pong / Python pong）全通；实例已重启加载修复。教训：公司代理环境下任何 localhost 客户端都需显式绕过（requests=trust_env、websockets=proxy=None）。
 
 ---
 
