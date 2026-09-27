@@ -3620,5 +3620,58 @@
       "source": "cli",
       "timestamp": "2026-09-27T12:24:33.294Z"
     }
+  },
+  {
+    "id": "825d1940-9e7e-48dd-8d5e-b6bf42f764d9",
+    "question": "（2026-09-27）install-singleton 脚本会不会引入重复安装（树莓派空间有限）？",
+    "answer": "结论：脚本本身不会——install 幂等，重复执行只覆盖同一用户级 unit（~/.config/systemd/user/xiaozhi-server.service），不复制仓库/venv，磁盘开销仅 1KB unit 文件。真实重复安装风险=与全模块安装的系统级同名 unit（install-all-services.sh 产物 /etc/systemd/system/xiaozhi-server.service）共存 → 双实例抢端口、失败重启循环、日志重复写；已修复：install 检测到系统级同名 unit 一律拒绝并给 sudo 清理命令，start/restart 在系统级运行中或 enabled 时拒绝，uninstall 残留提示，install-all-services.sh 反向提示，docs 同步（deploy §4 / start §0+§7）；提交 64cdc92。验证：bash -n ×2；沙箱 8 用例（幂等/冲突拒绝/start 三态/uninstall/未安装守卫）全过；真机 install 正确拒绝且不落盘。附带发现：本机 /etc/systemd/system/xiaozhi-server.service 为 9-12 遗留（enabled+activating 重启循环，1 小时 1838 行日志），待 sudo 清理后本机才能执行单例安装。",
+    "timestamp": "2026-09-27T13:05:23.755Z",
+    "tags": [
+      "deploy",
+      "script",
+      "systemd"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-09-27T13:05:23.755Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-09-27T13:05:23.756Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [
+        "rest"
+      ],
+      "patterns": [
+        "singleton"
+      ],
+      "concepts": []
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-09-27T13:05:23.712Z"
+    }
   }
 ]

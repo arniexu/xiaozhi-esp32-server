@@ -22,6 +22,7 @@
 - 澄清：'台湾/北京/男友'为模型自编扮演（非系统设定、非用户输入）；'上海'为用户真述；旧污染节点 additive 不可删，待 CR P4 supersede 根治
 - 真机复测（浏览器 test_page 直连 8010）：8 turns → 逐句分析 keep=3 → 6 单元（3 事实+2 边单元+1 摘要）fallback=False；人设（台湾/北京/男友）0 入库；字面召回 OK（团子/吉他），无系统词泄漏与身份混淆；近义召回盲区仍在（'我叫什么名字' 未命中 '用户自称小熊'，需语义/embedding 通道）
 - 2026-09-21：单例模式启动手册落盘（5bd83e4：docs/singleton-mode-start.md）——deploy 只管装、start 只管起；install-singleton-service.sh 仅 enable 不 start（首次须手动 start），CR 的 install-user-service.sh 为 enable --now；成功判据=is-active/端口 8000·8003·8765/日志无 Traceback
+- 2026-09-27：install-singleton-service 防重复安装加固——install 拒绝与系统级同名 unit 共存（install-all-services.sh 产物 /etc/systemd/system/xiaozhi-server.service），start/restart 在系统级运行/enabled 时拒绝，uninstall 残留提示，install 区分“已安装/已更新”（幂等）；全模块脚本反向提示；docs 同步（deploy §4 / start §0+§7）。验证=沙箱 8 用例 + 真机拒绝；另发现本机 /etc/systemd/system/xiaozhi-server.service 为 9-12 遗留（enabled+activating 重启循环、约 1 小时 1838 行日志），待 sudo 清理（清理后用户级安装才能执行）
 
 ## 🚧 Blockers & Challenges
 - 完整模式部署前置（如采用）：本机 Java/Maven 未装、当前用户不在 docker 组、8000 端口被 pyserver 占用
