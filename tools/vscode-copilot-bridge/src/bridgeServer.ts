@@ -6,17 +6,19 @@ interface InboundMessage {
   request_id?: string;
   session_id?: string;
   text?: string;
+  token?: string;
 }
 
 /**
- * 桥接 WebSocket 服务（仅绑定 127.0.0.1）。
+ * 桥接 WebSocket 服务（默认仅绑定 127.0.0.1；跨机直连可配 bindAddress + 令牌）。
  * 协议（JSON 单行）：
- *   服务端→扩展: {"type":"request","request_id","session_id","text"} / {"type":"cancel","request_id"} / {"type":"ping"}
+ *   服务端→扩展: {"type":"request","request_id","session_id","text","token"?} / {"type":"cancel","request_id","token"?} / {"type":"ping"}
  *   扩展→服务端: {"type":"chunk"|"done"|"error","request_id","text"|"message"}
  */
 export class BridgeServer {
   private wss?: WebSocketServer;
   private clients = 0;
+  private token = "";
 
   constructor(
     private readonly core: BridgeCore,
@@ -24,10 +26,13 @@ export class BridgeServer {
     private readonly onClientsChanged: (n: number) => void
   ) {}
 
-  start(port: number, host = "127.0.0.1"): void {
+  start(port: number, host = "127.0.0.1", token = ""): void {
     this.stop();
+    this.token = token;
     const wss = new WebSocketServer({ host, port });
-    wss.on("listening", () => this.output(`[桥接服务] 监听 ws://${host}:${port}`));
+    wss.on("listening", () =>
+      this.output(`[桥接服务] 监听 ws://${host}:${port}${token ? "（已启用令牌校验）" : ""}`)
+    );
     wss.on("error", (e) => this.output(`[桥接服务] 错误: ${String(e)}（端口被占用？可在设置里修改 xiaozhiBridge.port）`));
     wss.on("connection", (ws) => {
       this.clients += 1;
@@ -69,6 +74,7 @@ export class BridgeServer {
     const sink = { send: (obj: unknown) => this.safeSend(ws, obj) };
     switch (msg.type) {
       case "request":
+        if (!this.checkToken(ws, msg)) return;
         this.core.handleDeviceRequest(
           sink,
           String(msg.request_id ?? ""),
@@ -77,6 +83,7 @@ export class BridgeServer {
         );
         break;
       case "cancel":
+        if (!this.checkToken(ws, msg)) return;
         this.core.cancel(String(msg.request_id ?? ""));
         break;
       case "ping":
@@ -85,6 +92,20 @@ export class BridgeServer {
       default:
         this.output(`[桥接服务] 未知消息类型: ${String(msg.type)}`);
     }
+  }
+
+  private checkToken(ws: WebSocket, msg: InboundMessage): boolean {
+    if (!this.token || msg.token === this.token) {
+      return true;
+    }
+    this.output("[桥接服务] 令牌校验失败，已断开连接");
+    this.safeSend(ws, { type: "error", request_id: msg.request_id ?? "", message: "令牌校验失败" });
+    try {
+      ws.close(4001, "invalid token");
+    } catch {
+      /* 忽略 */
+    }
+    return false;
   }
 
   private safeSend(ws: WebSocket, obj: unknown): void {

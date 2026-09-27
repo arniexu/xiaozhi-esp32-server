@@ -94,8 +94,10 @@ Memory:
 copilot_bridge:
   # 总开关（关闭后关键词不生效，完全不影响常规对话）
   enabled: true
-  # VS Code 扩展桥接监听地址（仅本机 localhost）
+  # 桥接地址：同机/SSH 隧道保持 ws://127.0.0.1:8767；跨机直连改为 ws://<VS Code 主机>:8767
   url: ws://127.0.0.1:8767
+  # 跨机直连共享令牌：与扩展设置 xiaozhiBridge.token 保持一致；留空=不校验
+  token: ""
   # 连接超时 / 整次回复超时（秒）
   connect_timeout: 3
   reply_timeout: 120

@@ -65,7 +65,8 @@ flowchart LR
 ```yaml
 copilot_bridge:
   enabled: true                      # 总开关；关闭后关键词不生效
-  url: ws://127.0.0.1:8767           # 扩展桥接监听地址（仅本机）
+  url: ws://127.0.0.1:8767           # 同机/隧道=localhost；跨机直连=ws://<VS Code 主机>:8767
+  token: ""                          # 跨机直连共享令牌（与扩展 xiaozhiBridge.token 一致）；留空=不校验
   connect_timeout: 3                 # 连接超时（秒）
   reply_timeout: 120                 # 整次回复超时（秒）
   enter_keywords: [问copilot, 问一下copilot, 问问copilot, 找copilot, 呼叫copilot]
@@ -95,7 +96,7 @@ copilot_bridge:
 
 ## 5. VS Code 扩展设计（P2，`tools/vscode-copilot-bridge/`）
 
-- **桥接服务**：Node `ws` 监听 127.0.0.1:8767；维护 `Map<session_id, LanguageModelChatMessage[]>` 多轮上下文；
+- **桥接服务**：Node `ws` 默认监听 127.0.0.1:8767（可配 `bindAddress`/`token` 支持跨机直连）；维护 `Map<session_id, LanguageModelChatMessage[]>` 多轮上下文；
 - **模型调用**：`vscode.lm.selectChatModels({vendor:'copilot'})` + `model.sendRequest()`（流式）；首用需用户授权一次（Consent 弹窗，属正常流程）；
 - **@xiaozhi 聊天参与者**：设备消息以 `@xiaozhi <text>` 形式注入当前 Chat 面板（`workbench.action.chat.open`），对话**在面板可见**；手动和它聊天也可（桥接状态、测试用）；
 - **播报过滤（SpeechFilter）**：流式状态机——剔除代码围栏（替换为「代码部分略过」）、行内反引号、Markdown 记号、链接语法；超长截断（默认 ≤300 字，可配）；
@@ -192,13 +193,13 @@ WantedBy=default.target
 
 安全：SSH 自带鉴权与加密；扩展始终保持 loopback 绑定，不对网络暴露。
 
-### 拓扑 C：分机 + 直连（LAN/VPN；需两处小改动，尚未实现）
+### 拓扑 C：分机 + 直连（LAN/VPN；已支持，配置即可）
 
 适用：X、Y 网络稳定互通（同 LAN 或 Tailscale/WireGuard 组网），不想常驻隧道。
 
-- 扩展侧新增：`xiaozhiBridge.bindAddress`（当前硬编码 `127.0.0.1`）＋共享令牌校验（当前无鉴权）；
-- 服务端侧：`copilot_bridge.url: ws://<Y>:8767` ＋携带共享令牌；
-- 防火墙：仅放行 8767/TCP 给对端地址；仍建议仅在受控网络（VPN）内使用。
+1. Y（VS Code）设置：`xiaozhiBridge.bindAddress` = `0.0.0.0`（或指定网卡 IP）＋ `xiaozhiBridge.token` = <共享令牌>（改完自动重启桥接服务，或 reload 窗口）；
+2. X（服务端）配置：`copilot_bridge.url: ws://<Y>:8767` ＋ `copilot_bridge.token: <共享令牌>`，重启 xiaozhi-server；
+3. 防火墙：仅放行 8767/TCP 给对端地址；仍建议仅在受控内网/VPN 内使用（明文 ws，无 TLS）。
 
 ### 共同前提与限制
 
@@ -206,4 +207,4 @@ WantedBy=default.target
 - Copilot 配额跟「运行扩展那台机器上登录的 Copilot 账号」走。
 - 多轮会话按 `<device-id>#copilot` 存在扩展内存：VS Code 重启/换机后上下文丢失（与设计一致，无持久化）。
 - 时延路径：设备 → 服务器 X →（隧道/网络）→ VS Code 主机 Y → Copilot 云 → 原路返回；`reply_timeout` 默认 120s 足够。
-- 选择建议：内部/家庭常用 **B**（最省事、最安全）；X、Y 同网且追求低时延用 **C**（需补 bindAddress+token 两个小改动）；一体机/临时场景用 **A**。
+- 选择建议：内部/家庭常用 **B**（最省事、最安全）；X、Y 同网且追求低时延用 **C**（配置即用）；一体机/临时场景用 **A**。

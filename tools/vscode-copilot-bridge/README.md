@@ -24,7 +24,7 @@ cd tools/vscode-copilot-bridge
 激活后右下角状态栏出现 `📡 小智桥接:8767`。
 
 > 也可用 `npm run compile` 后把整个目录（含 `node_modules/`、`out/`、`package.json`）手动复制到
-> `~/.vscode-server/extensions/arniexu.xiaozhi-copilot-bridge-0.1.0/`，同样 reload 生效。
+> `~/.vscode-server/extensions/arniexu.xiaozhi-copilot-bridge-0.2.0/`，同样 reload 生效。
 
 ## 使用
 
@@ -37,11 +37,18 @@ cd tools/vscode-copilot-bridge
 
 | 设置项 | 默认 | 说明 |
 |---|---|---|
-| `xiaozhiBridge.port` | 8767 | 桥接监听端口（仅 127.0.0.1） |
+| `xiaozhiBridge.port` | 8767 | 桥接监听端口（与 `copilot_bridge.url` 一致） |
+| `xiaozhiBridge.bindAddress` | 127.0.0.1 | 监听地址；跨机直连填 `0.0.0.0` 或网卡 IP（务必同时设 token） |
+| `xiaozhiBridge.token` | （空） | 共享令牌；非空时校验，需与 `copilot_bridge.token` 一致 |
 | `xiaozhiBridge.mirrorToChat` | true | 设备对话镜像到 @xiaozhi 面板（失败自动回退直连） |
 | `xiaozhiBridge.mirrorPickupMs` | 2000 | 镜像接管等待时间，超时回退直连 |
 | `xiaozhiBridge.spokenMaxChars` | 300 | 单条播报文本最大字数 |
 | `xiaozhiBridge.modelFamily` | （空） | 直连路径指定模型 family，留空自动选第一个可用模型 |
+
+## 跨机部署
+
+- 同机 / SSH 隧道：无需改动（默认 localhost 监听；隧道见 `docs/copilot-bridge-plan.md` §11）。
+- 跨机直连：本扩展设 `bindAddress` + `token`，服务端设 `copilot_bridge.url` 指向本机 + 相同 `token`，两侧配置一致即可。
 
 ## 故障排查
 

@@ -9,6 +9,7 @@
 3. 模式内转发 → 假桥接 → TTS 队列流式信封断言（FIRST/TEXT…/LAST）
 4. 桥接不可达 → 降级播报
 5. 未启用 / 系统伪输入（source）不介入
+6. 跨机直连令牌校验（一致可用 / 不符降级）
 """
 
 import asyncio
@@ -67,6 +68,7 @@ from core.providers.tts.dto.dto import (  # noqa: E402
 CFG = {
     "enabled": True,
     "url": "ws://127.0.0.1:8767",
+    "token": "",
     "connect_timeout": 1,
     "reply_timeout": 5,
     "enter_keywords": ["问copilot", "问一下copilot", "找copilot"],
@@ -170,12 +172,16 @@ def free_port():
         return sock.getsockname()[1]
 
 
-def start_fake_bridge(port):
-    """假扩展桥接：收到 request 后回两个 chunk + done。"""
+def start_fake_bridge(port, token=""):
+    """假扩展桥接：收到 request 后回两个 chunk + done（token 非空时校验）。"""
 
     def handler(ws):
         msg = json.loads(ws.recv())
         rid = msg.get("request_id")
+        if token and msg.get("token") != token:
+            ws.send(json.dumps({"type": "error", "request_id": rid, "message": "令牌校验失败"}))
+            ws.close(4001, "invalid token")
+            return
         ws.send(json.dumps({"type": "chunk", "request_id": rid, "text": "你好，"}))
         ws.send(json.dumps({"type": "chunk", "request_id": rid, "text": "这是 Copilot 的回答。"}))
         ws.send(json.dumps({"type": "done", "request_id": rid, "text": "你好，这是 Copilot 的回答。"}))
@@ -291,6 +297,25 @@ def test_disabled_and_source():
     check("系统伪输入不接管", handled2 is False and conn2.copilot_mode is False)
 
 
+def test_token_check():
+    print("[8] 跨机直连令牌校验")
+    port = free_port()
+    server = start_fake_bridge(port, token="s3cret")
+    try:
+        conn = FakeConn({**CFG, "url": f"ws://127.0.0.1:{port}", "token": "s3cret"})
+        handled = asyncio.run(bridge.maybe_handle_copilot_message(conn, "问 Copilot 你好"))
+        check("令牌一致被接管", handled is True)
+        texts = "".join(t for s, c, t in drain(conn) if c == ContentType.TEXT and t)
+        check("令牌一致正常播报", texts == "你好，这是 Copilot 的回答。", texts)
+
+        conn2 = FakeConn({**CFG, "url": f"ws://127.0.0.1:{port}", "token": "wrong"})
+        asyncio.run(bridge.maybe_handle_copilot_message(conn2, "问 Copilot 你好"))
+        texts2 = "".join(t for s, c, t in drain(conn2) if c == ContentType.TEXT and t)
+        check("令牌不符降级提示", "令牌校验失败" in texts2, texts2)
+    finally:
+        server.shutdown()
+
+
 def main():
     bridge.send_stt_message = fake_send_stt  # 桩掉设备侧 STT 发送
 
@@ -303,6 +328,7 @@ def main():
         test_enter_only()
         test_exit()
         test_unreachable()
+        test_token_check()
         test_disabled_and_source()
     finally:
         server.shutdown()

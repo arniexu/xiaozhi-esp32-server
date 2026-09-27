@@ -161,6 +161,7 @@ def _forward_to_copilot(conn, request_id, session_id, query, cfg):
                     "request_id": request_id,
                     "session_id": session_id,
                     "text": query,
+                    "token": str(cfg.get("token", "") or ""),
                 }
             )
         )
@@ -182,7 +183,15 @@ def _forward_to_copilot(conn, request_id, session_id, query, cfg):
             if _aborted():
                 # 打断/作废：通知扩展取消 LLM 请求
                 try:
-                    ws.send(json.dumps({"type": "cancel", "request_id": request_id}))
+                    ws.send(
+                        json.dumps(
+                            {
+                                "type": "cancel",
+                                "request_id": request_id,
+                                "token": str(cfg.get("token", "") or ""),
+                            }
+                        )
+                    )
                 except Exception:
                     pass
                 break

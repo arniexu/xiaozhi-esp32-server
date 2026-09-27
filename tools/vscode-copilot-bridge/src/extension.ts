@@ -11,6 +11,9 @@ export function activate(context: vscode.ExtensionContext): void {
   let server: BridgeServer | undefined;
 
   const getPort = (): number => vscode.workspace.getConfiguration("xiaozhiBridge").get<number>("port", 8767);
+  const getHost = (): string =>
+    vscode.workspace.getConfiguration("xiaozhiBridge").get<string>("bindAddress", "127.0.0.1") || "127.0.0.1";
+  const getToken = (): string => vscode.workspace.getConfiguration("xiaozhiBridge").get<string>("token", "") || "";
 
   const updateStatus = (): void => {
     status.text = `$(radio-tower) 小智桥接:${getPort()}${clients > 0 ? ` (${clients})` : ""}`;
@@ -29,13 +32,15 @@ export function activate(context: vscode.ExtensionContext): void {
         updateStatus();
       }
     );
-    server.start(getPort());
+    server.start(getPort(), getHost(), getToken());
     updateStatus();
   };
 
   startServer();
   output.appendLine(`[启动] 小智 Copilot 桥接 v${String(context.extension.packageJSON.version ?? "?")}`);
-  output.appendLine(`[启动] 桥接监听 127.0.0.1:${getPort()}；xiaozhi-server 的 copilot_bridge.url 需与之对应`);
+  output.appendLine(
+    `[启动] 桥接监听 ${getHost()}:${getPort()}${getToken() ? "（已启用令牌校验）" : ""}；xiaozhi-server 的 copilot_bridge.url 需与之对应`
+  );
   output.appendLine("[启动] 首次对话时 Copilot 会请求授权扩展访问语言模型，请选择允许");
 
   // @xiaozhi 聊天参与者：设备请求的镜像入口（也可手动聊天）
@@ -69,7 +74,11 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push({ dispose: () => server?.dispose() });
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration("xiaozhiBridge.port")) {
+      if (
+        e.affectsConfiguration("xiaozhiBridge.port") ||
+        e.affectsConfiguration("xiaozhiBridge.bindAddress") ||
+        e.affectsConfiguration("xiaozhiBridge.token")
+      ) {
         startServer();
       }
     })
@@ -78,9 +87,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("xiaozhiBridge.showStatus", () => {
       output.show(true);
       output.appendLine(
-        `[状态] 端口 ${getPort()}，当前连接 ${clients}，镜像=${vscode.workspace
+        `[状态] 监听 ${getHost()}:${getPort()}，当前连接 ${clients}，镜像=${vscode.workspace
           .getConfiguration("xiaozhiBridge")
-          .get<boolean>("mirrorToChat", true)}`
+          .get<boolean>("mirrorToChat", true)}，令牌=${getToken() ? "启用" : "关闭"}`
       );
     })
   );

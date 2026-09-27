@@ -14,8 +14,10 @@ VERSION="$(node -p "require('./package.json').version")"
 NAME="$(node -p "require('./package.json').publisher + '.' + require('./package.json').name")"
 TARGET="$HOME/.vscode-server/extensions/${NAME}-${VERSION}"
 
+echo "==> 清理旧版本"
+rm -rf "$HOME/.vscode-server/extensions/${NAME}-"* 2>/dev/null || true
+
 echo "==> 安装到 $TARGET"
-rm -rf "$TARGET"
 mkdir -p "$TARGET"
 cp -r package.json out node_modules README.md "$TARGET/"
 
