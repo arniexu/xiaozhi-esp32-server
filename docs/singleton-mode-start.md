@@ -31,9 +31,13 @@ systemctl --user start xiaozhi-server
 > 先起 CR 可避免开机后首轮对话"记忆缺失"。
 
 > 首次安装时：CR 的 `install-user-service.sh` 会 `enable --now`（自动启动）；
-> xiaozhi 的 `install-singleton-service.sh` 只 `enable`（不自动启动），**首次必须手动 start**。
+> xiaozhi 的 `install-singleton-service.sh install` 只 `enable`（不自动启动），**首次必须 start**：
+> `bash main/xiaozhi-server/scripts/install-singleton-service.sh start`
+> （该脚本已集成 start/stop/restart/status/logs/uninstall 子命令，等价于下列 systemctl 命令）。
 
 ## 2. 启停速查
+
+> xiaozhi 侧同样可用脚本子命令：`bash main/xiaozhi-server/scripts/install-singleton-service.sh {start|stop|restart|status|logs}`。
 
 | 操作 | xiaozhi-server | knowledge-agent-service |
 |---|---|---|

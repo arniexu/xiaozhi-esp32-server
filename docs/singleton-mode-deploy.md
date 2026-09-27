@@ -48,10 +48,13 @@ systemctl --user status knowledge-agent-service
 
 ```bash
 cd <repo>
-bash main/xiaozhi-server/scripts/install-singleton-service.sh
-systemctl --user start xiaozhi-server
-systemctl --user status xiaozhi-server
+bash main/xiaozhi-server/scripts/install-singleton-service.sh          # 安装/更新（默认命令）
+bash main/xiaozhi-server/scripts/install-singleton-service.sh start    # 首次启动
+bash main/xiaozhi-server/scripts/install-singleton-service.sh status   # 查看状态
 ```
+
+> 日常维护已集成在同一脚本：`{start|stop|restart|status|logs|uninstall}`
+> （等价 systemctl --user 命令与故障速查见 docs/singleton-mode-start.md）。
 
 ## 5. 验收（原样复用，通过标准：三项全过）
 
