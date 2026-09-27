@@ -144,3 +144,66 @@ copilot_bridge:
 - 镜像开启时，注入消息会进入 `@xiaozhi` 面板会话（可见性所选）；手动输入与设备注入的区分用 FIFO 队列对齐。
 - 模型选择：跟随面板所选模型（设备注入走参与者时）；直连路径用 `selectChatModels` 默认或配置指定。
 - 语音识别英文词「Copilot」偶发拼写偏差（co-pilot 已兼容；其他变体可用 `enter_keywords` 配置增补）。
+
+## 11. 跨机部署（小智服务器切换 / 迁移）
+
+桥接由两半组成：**服务端**（`copilotHandle`，WS 客户端，读 `copilot_bridge.url`，默认 `ws://127.0.0.1:8767`）与**扩展**（WS 服务 + Copilot LM API，默认只监听 `127.0.0.1:8767`）。
+
+> ⚠️ 首要前提：**新服务器必须运行本 fork 的代码**（含 `copilotHandle` 与 `copilot_bridge` 配置块）。若切到官方/第三方服务器，服务端一半不存在，桥接无法工作（需先在其上部署本仓库）。
+
+设备/固件不需要任何改动（设备只需按新服务器更新 OTA/连接地址；桥接对设备不可见）。部署方式只取决于「小智服务器」与「VS Code(Copilot)」是否同机：
+
+### 拓扑 A：同机（当前形态，零改动）
+
+适用：新服务器所在机器上也有 VS Code / VS Code Server（Remote-SSH 窗口）。
+
+1. 新机安装扩展：`cd tools/vscode-copilot-bridge && ./install-remote.sh`（VS Code Server 场景）；桌面版 VS Code 则装 VSIX（扩展目录为 `~/.vscode/extensions`）；
+2. Reload 窗口，确认状态栏 📡 与输出面板「小智桥接」出现、8767 在听；
+3. 服务端配置保持 `copilot_bridge.url: ws://127.0.0.1:8767`（`config.yaml`；单例用 `config_singleton.yaml`，两块均已内置）；
+4. 重启 xiaozhi-server。
+
+### 拓扑 B：分机 + SSH 隧道（推荐，零代码改动）
+
+适用：服务器在机器 X（如树莓派），VS Code 在机器 Y（如办公电脑）。原理：在 X 造一个 `127.0.0.1:8767` 监听，经 SSH 转发到 Y 的 `127.0.0.1:8767`（扩展），**服务端配置不用改**。
+
+两个方向任选其一（取决于哪边能 SSH 到哪边）：
+
+- 在 X 上执行（X 主动连 Y）：`ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -L 8767:127.0.0.1:8767 <user>@<Y>`
+- 或在 Y 上执行（Y 主动连 X）：`ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -R 8767:127.0.0.1:8767 <user>@<X>`
+
+常驻（以 X 上 user systemd 为例，`loginctl enable-linger $USER` 保证无登录也运行）：
+
+```ini
+# ~/.config/systemd/user/copilot-bridge-tunnel.service
+[Unit]
+Description=Copilot bridge SSH tunnel (localhost:8767 -> VS Code host)
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -L 8767:127.0.0.1:8767 <user>@<Y>
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+```
+
+`systemctl --user enable --now copilot-bridge-tunnel`。验证：X 上 `ss -ltn | grep 8767` 有监听；设备请求到达时扩展输出面板出现「设备侧已连接」。
+
+安全：SSH 自带鉴权与加密；扩展始终保持 loopback 绑定，不对网络暴露。
+
+### 拓扑 C：分机 + 直连（LAN/VPN；需两处小改动，尚未实现）
+
+适用：X、Y 网络稳定互通（同 LAN 或 Tailscale/WireGuard 组网），不想常驻隧道。
+
+- 扩展侧新增：`xiaozhiBridge.bindAddress`（当前硬编码 `127.0.0.1`）＋共享令牌校验（当前无鉴权）；
+- 服务端侧：`copilot_bridge.url: ws://<Y>:8767` ＋携带共享令牌；
+- 防火墙：仅放行 8767/TCP 给对端地址；仍建议仅在受控网络（VPN）内使用。
+
+### 共同前提与限制
+
+- **扩展只在 VS Code 窗口打开期间存活**（扩展宿主随窗口启停）：桥接可用性 = 开着 VS Code 的那台机器在线；关闭后设备侧自动降级为「桥接没连上」提示，常规对话不受影响。
+- Copilot 配额跟「运行扩展那台机器上登录的 Copilot 账号」走。
+- 多轮会话按 `<device-id>#copilot` 存在扩展内存：VS Code 重启/换机后上下文丢失（与设计一致，无持久化）。
+- 时延路径：设备 → 服务器 X →（隧道/网络）→ VS Code 主机 Y → Copilot 云 → 原路返回；`reply_timeout` 默认 120s 足够。
+- 选择建议：内部/家庭常用 **B**（最省事、最安全）；X、Y 同网且追求低时延用 **C**（需补 bindAddress+token 两个小改动）；一体机/临时场景用 **A**。
