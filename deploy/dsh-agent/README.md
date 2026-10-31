@@ -209,3 +209,32 @@ cd /tmp && setsid nohup dsh --profile elder_helper --port 3081 \
 grep -o 'http://127.0.0.1:3081/?token=[A-Za-z0-9_-]*' ~/.dsh/logs/elder-web.log | tail -1
 tail -f ~/.dsh/logs/elder-prompts.log      # 看收到的话
 ```
+
+## 人设：老人陪伴助手「小安」
+
+约束正文在 [persona/elder-persona.md](persona/elder-persona.md)，分六块：面对的是谁、怎么说话、
+怎么想事、怎么办事、安全边界、绝对不要。要点：
+
+- **说话**：一次两三句、先说最要紧的、先接话再办事、一次只问一个问题、给两个选项比开放式提问好、重要的事复述确认、不催不纠正口音。
+- **想事**：先想他方不方便（天气/饭点/腿脚）、记不记得、做不做得到、愿不愿意、会不会担心。
+- **办事**：先问清再动手（谁/何时/在哪/要不要人陪），能落地就落地（查天气、定提醒、记事情），复杂操作拆成一步一句，办不成直说。
+- **边界**：不诊断不劝停药；胸痛/喘不上气/说话不利索/摔倒起不来 → 直接让他打 120 或叫家人；不推销不诱导消费；不打听隐私；不冒充亲人。
+
+装到两处（`apply-persona.py` 幂等执行）：
+
+```bash
+python3 deploy/dsh-agent/apply-persona.py            # 两个都装
+python3 deploy/dsh-agent/apply-persona.py --only web # 只装 web 档
+```
+
+| 档 | 落点 | 说明 |
+|---|---|---|
+| `elder_helper_acp`（小智语音） | `system-prompt.personaPrefix` | 不加载任何 AGENTS.md |
+| `elder_helper`（web UI 3081） | `preset-standard.plugins.persona.prefix` | preset 的 persona 会 shadow 部署级人设，所以整列替换 preset 的 plugins（32 项，脚本自动从 `dsh --dump-config` 取当前版本，**dsh 升级后重跑一次**） |
+
+装完要重启对应实例：web 档重启 3081；语音档在下一条连接时自动加载。
+
+实测（同一句话："我一个人在家，腿有点疼，也不想麻烦孩子"）：
+
+- web：`哎哟，腿疼可别硬撑着。一个人在家也别总觉着麻烦孩子，这事儿咱先自己看明白。` / `我想先问一句：您是走路的时候疼，还是坐着不动也疼？`
+- 语音档：`哎哟，腿疼可别硬撑着，先坐下歇会儿。` / `我想先问一句：腿疼是走路的时候才疼，还是坐着不动也疼？`
