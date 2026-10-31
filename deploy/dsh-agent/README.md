@@ -194,8 +194,13 @@ cd main/xiaozhi-server
    [07:55:38] 8722e99f 用户: 今天外面天气怎么样
    ```
    看实时流：`tail -f ~/.dsh/logs/elder-prompts.log`
-2. **老人友好 CSS**：通过 `webServer.tapIndex` 注入 `<style data-elder-ui>`，
-   放大字号/行高、按钮与输入框加大。纯 CSS，刷新页面即生效。
+2. **老人友好 CSS**：通过 `webServer.tapIndex` 注入 `<style data-elder-ui>`。
+   样式放在 `elder-ui/elder-ui.css`，插件**每次请求现读**，改完刷新页面就生效（不用重启）。
+   现状：正文 20px / 行高 1.85（原来是 14.7px）、用户气泡 19px、输入框 18px、
+   按钮最小高度 2.5rem、侧边栏 15px。
+   注意 DSH 的组件用 CSS Modules 哈希类名（`_markdown_1ypvv_5` 这种），选择器要用
+   `[class*="_markdown_"]` 这类子串匹配——第一版按 `[class*="message"]` 写，一个都没命中，
+   看起来像"UI 没变"。
 
 > 注意：`agent/pre-step` 是 **waterfall** 事件，处理函数必须 `return next()`；
 > 只写副作用不调用 next 会把推理链打断，页面报

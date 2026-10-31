@@ -17,12 +17,14 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
+import { fileURLToPath } from 'node:url'
 
 export const name = 'elder-ui'
 export const inject = ['webServer']
 
 const LOG = path.join(os.homedir(), '.dsh', 'logs', 'elder-prompts.log')
 const SELF_LOG = path.join(os.homedir(), '.dsh', 'logs', 'elder-ui.log')
+const CSS_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'elder-ui.css')
 
 function note(message) {
   const line = `${new Date().toISOString()} ${message}`
@@ -60,31 +62,6 @@ function sessionLabel(agent) {
   return String(id).replace(/^session-/, '').slice(0, 8)
 }
 
-const CSS = `
-<style data-elder-ui>
-  /* 老人友好：字大一点、行距松一点、点击区域大一点 */
-  html { font-size: 17px; }
-  body { line-height: 1.7; -webkit-font-smoothing: antialiased; }
-
-  [class*="message"], [class*="markdown"], [class*="prose"] {
-    font-size: 1.05em !important;
-    line-height: 1.75 !important;
-  }
-
-  button, [role="button"] {
-    font-size: 1rem !important;
-    min-height: 2.25rem;
-  }
-
-  textarea, input[type="text"], [contenteditable="true"] {
-    font-size: 1.05rem !important;
-    line-height: 1.6 !important;
-  }
-
-  /* 右侧栏/工具栏的次要文字别太小 */
-  [class*="sidebar"] { font-size: 0.95rem; }
-</style>
-`
 
 export function apply(ctx) {
   try {
@@ -134,10 +111,19 @@ export function apply(ctx) {
 
   try {
     if (typeof ctx.webServer?.tapIndex === 'function') {
-      ctx.webServer.tapIndex((html) =>
-        html.includes('</head>') ? html.replace('</head>', `${CSS}</head>`) : CSS + html,
-      )
-      note('已注入 elder-ui CSS')
+      ctx.webServer.tapIndex((html) => {
+        // 每次请求都重读 CSS：调样式只刷新页面，不用重启 dsh
+        let css = ''
+        try {
+          css = fs.readFileSync(CSS_FILE, 'utf8')
+        } catch (err) {
+          note(`读 ${CSS_FILE} 失败: ${err}`)
+          return html
+        }
+        const tag = `<style data-elder-ui>\n${css}\n</style>`
+        return html.includes('</head>') ? html.replace('</head>', `${tag}</head>`) : tag + html
+      })
+      note(`已注入 elder-ui CSS（来自 ${CSS_FILE}）`)
     }
   } catch (err) {
     note(`注入 CSS 失败: ${err}`)

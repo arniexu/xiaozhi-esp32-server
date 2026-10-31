@@ -1,0 +1,51 @@
+/*
+ * elder_helper 的老人友好样式（由 elder-ui 插件注入）
+ * 目标：字号明显变大、行距放松、点击区域加大，尽量不改布局。
+ * 类名是 CSS Modules 的哈希形式（如 _markdown_1ypvv_5），用 [class*="_markdown_"] 匹配。
+ */
+
+/* 正文：agent 的回复默认只有 14.7px，老人看着吃力 */
+[class*="_markdown_"],
+[class*="_markdown_"] p,
+[class*="_markdown_"] li,
+[class*="_markdown_"] td {
+  font-size: 20px !important;
+  line-height: 1.85 !important;
+}
+
+[class*="_markdown_"] h1 { font-size: 26px !important; }
+[class*="_markdown_"] h2 { font-size: 24px !important; }
+[class*="_markdown_"] h3 { font-size: 22px !important; }
+[class*="_markdown_"] code { font-size: 17px !important; }
+
+/* 用户自己说的话 */
+[class*="_userRow"], [class*="_userRow"] * {
+  font-size: 19px !important;
+  line-height: 1.75 !important;
+}
+
+/* 输入框 */
+textarea,
+[contenteditable="true"],
+input[type="text"] {
+  font-size: 18px !important;
+  line-height: 1.7 !important;
+}
+
+/* 按钮、菜单项：点击区域加大 */
+button,
+[role="button"] {
+  font-size: 15px !important;
+  min-height: 2.5rem;
+}
+
+/* 侧边栏：会话名 / 工作区名放大一点，避免误点 */
+[class*="_projectRow"], [class*="_sessionRow"], [class*="_sessionName"],
+[class*="_sidebar"] [class*="_label"] {
+  font-size: 15px !important;
+}
+
+/* 顶部标题栏 */
+[class*="_title"], [class*="_threadTitle"] {
+  font-size: 16px !important;
+}
