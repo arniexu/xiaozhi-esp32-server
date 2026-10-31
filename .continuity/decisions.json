@@ -3924,5 +3924,71 @@
         "action": "created"
       }
     ]
+  },
+  {
+    "id": "1793420835483-rp8jdq",
+    "question": "（2026-10-31）DSH 转接怎么算验收通过？端到端卡在哪、怎么修的？",
+    "answer": "端到端验证通过（提交 81cf59a0）。做法：伪装设备连 ws://127.0.0.1:8010，用 listen/detect 的 text 字段绕开 ASR（textHandle.py 里 detect+text 会直接 startToChat），结果：[stt] 回显 → [tts] agent 回复两句（含天气工具调用结果\"今天奉贤这边白天二十三度…该喝点热的\"）→ 262 帧 / 28306 字节 opus 音频。修了两个卡点：①冷启动——connection.py 的 _initialize_components 末尾加 _prewarm_llm()，后台线程调 llm.prewarm(session_id)；dshagent 新增 prewarm() 并用 _starting 事件防并发重复起进程；实测 agent 会话就绪 5-11s、端到端首帧 27s（大头是 agent 自身推理/工具），同会话纯对话 ~2.8s。②Edge TTS 全线 403——是对既有决策 a7a542a3（公司网 wss 代理修复，当时结论是 edge-tts 7.0.0 会 403、需 >=7.2）的修正：实测 7.2.8 经代理(child-prc.intel.com:913)仍稳定 403、直连超时，升到 7.3.1 后同一代理同一句话 2.1s 出 12816 字节音频；requirements.txt 已由 edge_tts>=7.2 改为 >=7.3.1 并注明原因。附注：系统时钟未与 NTP 同步（RTC 偏 258s），排查 403 时要先排除时钟/代理变量。部署动作：重启了宿主机上跑了 33 天旧配置的小智服务，data/.config.yaml 已备份为 .bak-20261031；服务现以新配置常驻 8010。",
+    "timestamp": "2026-10-31T04:27:15.483Z",
+    "tags": [
+      "dsh",
+      "e2e",
+      "edge-tts",
+      "prewarm",
+      "tts",
+      "verified",
+      "xiaozhi"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "high",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "status": "active",
+      "source": "mcp",
+      "entities": {
+        "technologies": [],
+        "patterns": [],
+        "concepts": [],
+        "tools": []
+      },
+      "domain": "software",
+      "autoLink": {
+        "checkedAt": "2026-10-31T04:27:15.603Z",
+        "result": "orphan"
+      }
+    },
+    "commitHashes": [
+      "81cf59a070089397c6b2a62f6757f07bb7daa8c8"
+    ],
+    "commitInfo": [
+      {
+        "hash": "81cf59a070089397c6b2a62f6757f07bb7daa8c8",
+        "shortHash": "81cf59a",
+        "message": "feat(llm)：dshagent 连接即预热 + 端到端验证打通（文本→DSH→TTS 音频）",
+        "author": "xuqianjin",
+        "date": "2026-10-31T04:27:01+00:00",
+        "files": [
+          "deploy/dsh-agent/README.md",
+          "main/xiaozhi-server/core/connection.py",
+          "main/xiaozhi-server/core/providers/llm/dshagent/dshagent.py",
+          "main/xiaozhi-server/requirements.txt",
+          "main/xiaozhi-server/test/e2e_text_to_voice.py",
+          "main/xiaozhi-server/test/test_dshagent.py"
+        ]
+      }
+    ],
+    "history": [
+      {
+        "timestamp": "2026-10-31T04:27:15.526Z",
+        "action": "created"
+      }
+    ]
   }
 ]
