@@ -444,6 +444,9 @@ LLM:
     permission: allow
     # agent 没给出正文时的兜底播报
     fallback_reply: 抱歉，我这边暂时连不上，等会儿再问一次好吗？
+    # 立即应答：等 agent 出声超过 ack_delay 秒，先播这句（安抚等待），正文随后接着播
+    ack_text: 我看看啊。
+    ack_delay: 0.8
 
   # 所有openai类型均可以修改超参，以AliLLM为例
   # 当前支持的type为openai、dify、ollama，可自行适配

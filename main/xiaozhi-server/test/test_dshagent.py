@@ -66,6 +66,32 @@ def main():
     if reply3 != "收到：预热后第一句（第 1 次）":
         failures.append(f"预热会话首句不符：{reply3!r}")
 
+    # 立即应答：agent 慢于 ack_delay 时，第一句必须是 ack，然后才是正文
+    slow_provider = LLMProvider(
+        {
+            "command": [sys.executable, FAKE],
+            "workspace": workspace,
+            "timeout": 30,
+            "chunk_timeout": 10,
+            "ack_delay": 0.5,
+            "ack_text": "嗯，我看看啊。",
+        }
+    )
+    os.environ["FAKE_ACP_DELAY"] = "2"
+    try:
+        chunks = list(
+            slow_provider.response("device-slow", [{"role": "user", "content": "我想想"}])
+        )
+        if not chunks or chunks[0] != "嗯，我看看啊。":
+            failures.append(f"慢 agent 没有先回应答：{chunks[:2]!r}")
+        elif "收到：我想想" not in "".join(chunks):
+            failures.append(f"应答之后没有正文：{''.join(chunks)!r}")
+        else:
+            print(f"  ack 用例通过：先「{chunks[0]}」再正文")
+    finally:
+        os.environ.pop("FAKE_ACP_DELAY", None)
+        slow_provider.close()
+
     provider.close()
 
     if failures:
@@ -73,7 +99,7 @@ def main():
         for item in failures:
             print(" -", item)
         return 1
-    print("PASS 5/5  (首轮/二轮/设备隔离/空文本/预热)")
+    print("PASS 6/6  (首轮/二轮/设备隔离/空文本/预热/立即应答)")
     return 0
 
 

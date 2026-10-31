@@ -16,6 +16,7 @@ import os
 import shlex
 import threading
 import time
+import queue
 from typing import Dict, Iterator, Tuple
 
 from config.logger import setup_logging
@@ -28,6 +29,7 @@ logger = setup_logging()
 
 DEFAULT_COMMAND = "dsh --profile elder_helper_acp"
 DEFAULT_FALLBACK = "抱歉，我这边暂时连不上，等会儿再问一次好吗？"
+DEFAULT_ACK = "我看看啊。"
 
 
 class _AgentSession:
@@ -50,6 +52,12 @@ class LLMProvider(LLMProviderBase):
         self.idle_timeout = float(config.get("idle_timeout", 1800))
         self.permission = str(config.get("permission", "allow")).lower()
         self.fallback = config.get("fallback_reply") or DEFAULT_FALLBACK
+        # 立刻应答：等 agent 出声超过 ack_delay 秒就先播一句，之后再接正文
+        self.ack_text = config.get("ack_text", DEFAULT_ACK)
+        self.ack_delay = float(config.get("ack_delay", 1.2))
+        # 把设备侧已知的环境（时间/城市/天气）随首句带给 agent：不带的后果是它自己猜城市
+        self.forward_context = bool(config.get("forward_context", True))
+        self._context_sent: set = set()
 
         os.makedirs(self.workspace, exist_ok=True)
 
@@ -67,8 +75,14 @@ class LLMProvider(LLMProviderBase):
 
         try:
             client, agent_session_id = self._ensure_session(session_id)
+            prompt_text = text
+            if self.forward_context and session_id not in self._context_sent:
+                context = self._context_block(dialogue)
+                if context:
+                    prompt_text = f"{context}\n{text}"
+                self._context_sent.add(session_id)
             produced = False
-            for chunk in client.prompt(agent_session_id, text):
+            for chunk in self._prompt_with_ack(client, agent_session_id, prompt_text):
                 if chunk:
                     produced = True
                     yield chunk
@@ -87,6 +101,70 @@ class LLMProvider(LLMProviderBase):
             logger.bind(tag=TAG).error(f"agent 异常: {type(exc).__name__}: {exc}")
             self._drop_session(session_id)
             yield self.fallback
+
+    @staticmethod
+    def _context_block(dialogue) -> str:
+        """从系统提示里摘出 <context> 块（时间/城市/天气）。
+
+        xiaozhi 服务端已经把这些算好了，但我们只转发用户那句话，agent 拿不到，
+        于是会自己猜城市（实测猜成过北京）。首句带上这个块就对齐了。
+        """
+        for message in dialogue or []:
+            if message.get("role") != "system":
+                continue
+            content = message.get("content")
+            if not isinstance(content, str):
+                continue
+            start = content.find("<context>")
+            end = content.find("</context>", start + 1)
+            if start == -1 or end == -1:
+                continue
+            block = content[start + len("<context>"):end].strip()
+            if block:
+                return f"<context>\n{block[:800]}\n</context>"
+        return ""
+
+    def _prompt_with_ack(self, client, agent_session_id: str, text: str) -> Iterator[str]:
+        """先给一声应答，再吐正文。
+
+        agent 组织回复要几秒（思考、查天气、读记忆），老人那边干等着会以为没听见。
+        做法：把 prompt 放到工作线程里跑，主线程最多等 ack_delay 秒；
+        等不到第一个字就先播一句 ack_text（句号结尾，TTS 会立刻切成一句），
+        之后正文照常流式吐出。
+        """
+        inbox: "queue.Queue[tuple]" = queue.Queue()
+
+        def worker():
+            try:
+                for chunk in client.prompt(agent_session_id, text):
+                    if chunk:
+                        inbox.put(("chunk", chunk))
+                inbox.put(("done", None))
+            except Exception as exc:  # 交给主线程决定怎么降级
+                inbox.put(("error", exc))
+
+        thread = threading.Thread(target=worker, name="dsh-prompt", daemon=True)
+        thread.start()
+
+        ack_sent = False
+        while True:
+            timeout = self.chunk_timeout if ack_sent else min(self.ack_delay, self.chunk_timeout)
+            try:
+                kind, payload = inbox.get(timeout=timeout)
+            except queue.Empty:
+                if not ack_sent and self.ack_text:
+                    ack_sent = True
+                    logger.bind(tag=TAG).info(f"agent 未在 {self.ack_delay}s 内出声，先回应答")
+                    yield self.ack_text
+                    continue
+                raise AcpTimeout(f"{self.chunk_timeout}s 内没有新的增量")
+
+            if kind == "chunk":
+                yield payload
+            elif kind == "done":
+                return
+            else:
+                raise payload if isinstance(payload, Exception) else AcpError(str(payload))
 
     def close(self) -> None:
         with self._lock:
@@ -181,6 +259,7 @@ class LLMProvider(LLMProviderBase):
 
     def _drop_session(self, xiaozhi_session_id: str) -> None:
         with self._lock:
+            self._context_sent.discard(xiaozhi_session_id)
             item = self._sessions.pop(xiaozhi_session_id, None)
         if item is not None:
             self._close_item(item)

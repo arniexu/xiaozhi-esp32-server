@@ -11,8 +11,9 @@
 """
 
 import json
+import os
 import sys
-import threading
+import time
 
 SESSION_ID = "fake-session-1"
 _state = {"prompt_count": 0}
@@ -61,6 +62,9 @@ def _ask_permission():
 
 
 def _handle_prompt(request_id, params):
+    delay = float(os.environ.get("FAKE_ACP_DELAY", "0"))
+    if delay:
+        time.sleep(delay)  # 模拟 agent 思考，用来验证“先给应答”
     text = "".join(
         block.get("text", "")
         for block in params.get("prompt") or []
