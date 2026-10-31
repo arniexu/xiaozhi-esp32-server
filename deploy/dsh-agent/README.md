@@ -264,3 +264,40 @@ curl -H 'Host: 192.168.1.50:8003' http://10.112.230.11:8003/xiaozhi/ota/   # →
 
 所以设备只要**OTA 地址填的是隧道侧的 Windows IP**，拿到的 websocket 地址也会是那个 IP，
 不用在服务器上写死。想保持旧行为：`server.websocket_echo_host: false`。
+
+## 记忆体：小智专用 Context Recall 实例（127.0.0.1:8877）
+
+```bash
+bash deploy/dsh-agent/start-xiaozhi-cr.sh      # 数据固定在 ~/.local/share/xiaozhi-cr
+```
+
+**为什么单独一个实例**：小智的记忆不能和别人项目的知识库混在一个库，也不能放 `/tmp`
+（之前 `service_url` 指向 `/tmp/xiaozhi-cr-test`，重启机器就没了）。
+
+**配置（`data/.config.yaml`）**：
+
+```yaml
+Memory:
+  context_recall:
+    service_url: http://127.0.0.1:8877
+    workspace_id: xiaozhi
+    llm: DeepSeekLLM      # ← 关键：组织/总结必须用能吐 JSON 的 API 模型
+```
+
+> `llm` 留空会退回**主 LLM**（也就是陪伴 agent）。实测后果很隐蔽：agent 不会吐 JSON，
+> 组织失败 → 静默降级成"原始会话记录"入库，检索出来全是
+> `会话记录 xiaozhi:xxx`，等于没记忆。日志特征是
+> `组织 LLM 返回无法解析为 JSON，降级零 LLM 最小节点`。
+
+**踩过的第二个坑**：`_save_and_close` 保存记忆前会 `init_memory(llm=self.llm)` 重新绑定，
+把专用 LLM 又覆盖回主 LLM。已修：连接上记住 `memory_llm`，保存时用它。
+
+**注入链路**：`<memory>` 随会话首句带给 agent（和 `<context>` 一起），并过滤掉
+"会话记录"这类原始转写、去重、限 400 字——否则等于往 prompt 里灌噪声。
+
+**实测**：先聊 3 轮喂进事实（王秀兰 / 孙子豆豆 / 腿疼半个月），断开后**新会话**问
+「你还记得我孙子叫什么吗」→ `记着呢，您孙子叫豆豆，每个周末来看您`。
+改之前同样的问题只能答「这个我还真不知道」。
+
+**性能**：单次召回 `POST /v1/search` 实测 **0.08–0.14 s**，相对一轮 2 s 的对话可以忽略；
+它不是延迟瓶颈，瓶颈在 agent 推理与工具调用（已经通过"别重复查工具"把天气类从 12 s 压到 2 s）。

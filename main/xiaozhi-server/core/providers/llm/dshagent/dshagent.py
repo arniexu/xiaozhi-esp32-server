@@ -103,26 +103,54 @@ class LLMProvider(LLMProviderBase):
             yield self.fallback
 
     @staticmethod
-    def _context_block(dialogue) -> str:
-        """从系统提示里摘出 <context> 块（时间/城市/天气）。
+    def _extract_block(text: str, tag: str) -> str:
+        start = text.find(f"<{tag}>")
+        end = text.find(f"</{tag}>", start + 1)
+        if start == -1 or end == -1:
+            return ""
+        return text[start + len(tag) + 2 : end].strip()
 
-        xiaozhi 服务端已经把这些算好了，但我们只转发用户那句话，agent 拿不到，
-        于是会自己猜城市（实测猜成过北京）。首句带上这个块就对齐了。
+    @classmethod
+    def _context_block(cls, dialogue) -> str:
+        """从系统提示里摘出 <context>（时间/城市/天气）与 <memory>（长期记忆）。
+
+        xiaozhi 服务端已经把这些算好了，但我们只转发用户那句话，agent 拿不到：
+        没有 context 它会自己猜城市（实测猜成过北京），没有 memory 就永远想不起
+        用户说过的名字和事。两者都随首句带上。
+
+        memory 里要滤掉「会话记录/会话 xxx」这类原始转写（组织降级时会产生），
+        只留真正整理过的知识，否则等于往 prompt 里灌噪声。
         """
+        context, memory_raw = "", ""
         for message in dialogue or []:
             if message.get("role") != "system":
                 continue
             content = message.get("content")
             if not isinstance(content, str):
                 continue
-            start = content.find("<context>")
-            end = content.find("</context>", start + 1)
-            if start == -1 or end == -1:
-                continue
-            block = content[start + len("<context>"):end].strip()
-            if block:
-                return f"<context>\n{block[:800]}\n</context>"
-        return ""
+            context = context or cls._extract_block(content, "context")
+            memory_raw = memory_raw or cls._extract_block(content, "memory")
+
+        parts = []
+        if context:
+            parts.append(f"<context>\n{context[:800]}\n</context>")
+
+        if memory_raw:
+            seen, lines = set(), []
+            for line in memory_raw.splitlines():
+                item = line.strip()
+                if not item:
+                    continue
+                if item.startswith("会话") or "会话记录" in item:
+                    continue  # 原始转写，不进 prompt
+                if item in seen:
+                    continue
+                seen.add(item)
+                lines.append(item)
+            text = "\n".join(lines)[:400]
+            if text:
+                parts.append(f"<memory>\n{text}\n</memory>")
+        return "\n\n".join(parts)
 
     def _prompt_with_ack(self, client, agent_session_id: str, text: str) -> Iterator[str]:
         """先给一声应答，再吐正文。

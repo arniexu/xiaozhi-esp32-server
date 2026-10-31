@@ -266,7 +266,8 @@ class ConnectionHandler:
                         )
                         self.memory.init_memory(
                             role_id=memory_role_id,
-                            llm=self.llm,
+                            # 用连接上记住的「记忆专用 LLM」，否则会被主 LLM（陪伴 agent）覆盖
+                            llm=getattr(self, "memory_llm", None) or self.llm,
                             summary_memory=self.config.get("summaryMemory", None),
                             save_to_file=not self.read_config_from_api,
                         )
@@ -724,11 +725,13 @@ class ConnectionHandler:
         # 如果使用 nomen，直接返回
         if memory_type == "nomem":
             return
-        # 使用 mem_local_short 模式
-        elif memory_type == "mem_local_short":
-            memory_llm_name = memory_config[self.config["selected_module"]["Memory"]][
-                "llm"
-            ]
+        # 记忆组织/总结专用模型：配置里写了 llm 就用它（mem_local_short / context_recall 等
+        # 任何 provider 都适用）。不写则退回主 LLM——但主 LLM 若是陪伴型 agent（不吐 JSON），
+        # 组织会解析失败并降级成"原始会话记录"，记忆就只剩噪声。
+        elif memory_type in ("mem_local_short", "context_recall"):
+            memory_llm_name = (
+                memory_config[self.config["selected_module"]["Memory"]] or {}
+            ).get("llm")
             if memory_llm_name and memory_llm_name in self.config["LLM"]:
                 # 如果配置了专用LLM，则创建独立的LLM实例
                 from core.utils import llm as llm_utils
@@ -742,10 +745,13 @@ class ConnectionHandler:
                     f"为记忆总结创建了专用LLM: {memory_llm_name}, 类型: {memory_llm_type}"
                 )
                 self.memory.set_llm(memory_llm)
+                # 记在连接上：保存记忆时 init_memory 会重绑 LLM，这里必须用专用模型
+                self.memory_llm = memory_llm
             else:
                 # 否则使用主LLM
                 self.memory.set_llm(self.llm)
-                self.logger.bind(tag=TAG).info("使用主LLM作为意图识别模型")
+                self.memory_llm = self.llm
+                self.logger.bind(tag=TAG).info("使用主LLM作为记忆总结模型")
 
     def _initialize_intent(self):
         if self.intent is None:
