@@ -387,6 +387,7 @@ class ConnectionHandler:
             )
             if self.tts is None:
                 self.tts = self._initialize_tts()
+            self._prewarm_tts()
             # 打开语音合成通道
             asyncio.run_coroutine_threadsafe(
                 self.tts.open_audio_channels(self), self.loop
@@ -608,6 +609,28 @@ class ConnectionHandler:
         if resolved_name:
             self.agent_name = resolved_name
         return private_config
+
+    def _prewarm_tts(self):
+        """把高频应答（"我看看啊。"）先合成好放进短语缓存。
+
+        首轮的第一声就是这句话，预合成之后它直接从缓存出，连 TTS 都不用跑。
+        文案从 config 的 tts_prewarm_texts 读，默认跟 dshagent 的 ack_text 对齐。
+        """
+        tts = getattr(self, "tts", None)
+        if tts is None or not hasattr(tts, "to_tts"):
+            return
+        texts = self.config.get("tts_prewarm_texts") or ["我看看啊。"]
+        logger = self.logger
+
+        def _run():
+            for text in texts:
+                try:
+                    tts.to_tts(text)
+                    logger.bind(tag=TAG).info(f"TTS 预合成完成: {text}")
+                except Exception as exc:  # 预热失败不影响主流程
+                    logger.bind(tag=TAG).warning(f"TTS 预合成失败 {text}: {exc}")
+
+        threading.Thread(target=_run, name="tts-prewarm", daemon=True).start()
 
     def _prewarm_llm(self):
         """给支持预热的 LLM（如 dshagent）提前建会话。

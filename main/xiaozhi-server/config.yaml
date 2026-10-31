@@ -596,7 +596,17 @@ VLLM:
     # 可在这里找到你的api key https://bailian.console.aliyun.com/?apiKey=1#/api-key
     api_key: 你的api_key
 TTS:
-  # 当前支持的type为edge、doubao，可自行适配
+  # 当前支持的type为edge、doubao、sherpa，可自行适配
+  # 本地离线 TTS（sherpa-onnx）：短句 90–180ms，Edge 是 500–1500ms，且不依赖代理
+  # 模型（31MB）:
+  # https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-icefall-zh-aishell3.tar.bz2
+  # 解压到 ~/.cache/xiaozhi-tts/ 后，把 selected_module.TTS 改成 SherpaTTS
+  SherpaTTS:
+    type: sherpa
+    model_dir: ~/.cache/xiaozhi-tts/vits-icefall-zh-aishell3
+    speaker: 0
+    speed: 1.0
+    num_threads: 2
   EdgeTTS:
     # 定义TTS API类型
     type: edge
@@ -960,3 +970,8 @@ copilot_bridge:
     - 结束copilot
     - 关闭copilot
     - 收起copilot
+
+# 高频应答预合成（首轮第一声直接走短语缓存，0ms 出声）
+tts_prewarm_texts:
+  - 我看看啊。
+  - 好嘞。

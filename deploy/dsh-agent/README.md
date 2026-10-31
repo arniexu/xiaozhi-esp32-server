@@ -301,3 +301,43 @@ Memory:
 
 **性能**：单次召回 `POST /v1/search` 实测 **0.08–0.14 s**，相对一轮 2 s 的对话可以忽略；
 它不是延迟瓶颈，瓶颈在 agent 推理与工具调用（已经通过"别重复查工具"把天气类从 12 s 压到 2 s）。
+
+## 本地 TTS（sherpa-onnx）：把每句的 0.5–1.5 s 压到 0.1 s
+
+Edge TTS 每句都要走一次 WSS 握手（公司网走代理，实测 0.5–1.5 s，偶尔 403）；
+sherpa-onnx 在本机 CPU 上离线合成，短句 **90–180 ms**。
+
+```bash
+# 1) 模型（31 MB，中文 aishell3，8kHz）
+mkdir -p ~/.cache/xiaozhi-tts && cd ~/.cache/xiaozhi-tts
+curl -L -O https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-icefall-zh-aishell3.tar.bz2
+tar xjf vits-icefall-zh-aishell3.tar.bz2
+```
+
+```yaml
+selected_module:
+  TTS: SherpaTTS
+TTS:
+  SherpaTTS:
+    type: sherpa
+    model_dir: ~/.cache/xiaozhi-tts/vits-icefall-zh-aishell3
+    speaker: 0
+    speed: 1.0
+    num_threads: 2
+```
+
+**短语缓存 + 预合成**（`core/providers/tts/base.py` / `connection.py`）：
+
+- `to_tts` 按 (provider, voice, text) 缓存 opus 结果，重复句子直接命中；
+- 连接建立后后台把 `tts_prewarm_texts`（默认「我看看啊。」「好嘞。」）预合成进缓存。
+
+实测（同一句）：
+
+| 路径 | 耗时 |
+|---|---|
+| Edge 首次合成 | ~500–1500 ms |
+| sherpa 首次合成 | **92–176 ms** |
+| sherpa 命中短语缓存 | **0 ms** |
+
+> 取舍：aishell3 是 8 kHz（听起来像电话），胜在 31 MB / 90 ms。
+> 要更自然可换 `vits-melo-tts-zh_en`（~163 MB，22 kHz），合成会慢一些但仍远快于 Edge。
