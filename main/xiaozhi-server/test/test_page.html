@@ -628,6 +628,19 @@
         const conversationDiv = document.getElementById('conversation');
         const logContainer = document.getElementById('logContainer');
 
+        // 页面经端口转发/局域网打开时，127.0.0.1 指的是「你本机」而不是服务器。
+        // 默认把地址换成与当前页面相同的 host（端口保持 8010/8003），手动改过的不动。
+        (function preferCurrentHost() {
+            const host = window.location.hostname || '127.0.0.1';
+            const otaInput = document.getElementById('otaUrl');
+            if (otaInput && /127\.0\.0\.1|localhost/i.test(otaInput.value)) {
+                otaInput.value = `http://${host}:8003/xiaozhi/ota/`;
+            }
+            if (serverUrlInput && /127\.0\.0\.1|localhost/i.test(serverUrlInput.value)) {
+                serverUrlInput.value = `ws://${host}:8010/xiaozhi/v1/`;
+            }
+        })();
+
         // 日志函数
         function log(message, type = 'info') {
             // 将消息按换行符分割成多行
