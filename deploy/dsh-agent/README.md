@@ -122,3 +122,32 @@ cd main/xiaozhi-server
 * **人设收敛**：语音人设写在配置档的 `system-prompt.personaPrefix` 里，改完重启 agent 生效。
 * **拒绝策略**：`permission: deny` 可以禁止 agent 自行调用工具，只让它“纯聊天”。
 * **降时延**：首帧 27 s 主要花在 agent 的推理/工具调用上，可考虑让它对该场景少调工具。
+
+## 排障：能连上但语音没反应
+
+**1) 服务端 `Invalid port: ':1]'`（本次踩到）**
+
+启动日志里若出现 `实例化组件失败: Invalid port: ':1]'`，说明环境变量 `NO_PROXY` 里写了
+带方括号的 IPv6（如 `[::1]`）：httpx 0.27 建代理挂载表时解析不了，于是**任何在连接初始化阶段
+创建 httpx/OpenAI 客户端的组件**都会炸——`intent_llm` 配的独立 LLM 就是典型。异常被
+`_initialize_components` 吞掉后，意图识别/上报线程/提示词增强全部被跳过，表现为：
+**WebSocket 能连上、文字聊天正常，但对着说话没有任何反应**。
+
+`app.py` 启动时会自动把 `NO_PROXY` 规范化（去掉方括号条目、保留 `::1`）并打一条 WARNING：
+
+```
+NO_PROXY 含 httpx 无法解析的 IPv6 写法（如 [::1]），已规范化为: localhost,127.0.0.1,::1
+```
+
+看到这条且没有 `实例化组件失败`，就说明修好了。
+
+**2) 浏览器拿不到麦克风**
+
+`getUserMedia` 只在**安全上下文**里可用：`https://` 或 `http://localhost`。
+用 `http://<服务器IP>:8901` 打开测试页时，`navigator.mediaDevices` 直接是 `undefined`，
+页面再怎么点也不会录音（文字聊天不受影响）。三种解法：
+
+* 用 `http://localhost:8901` 打开（SSH 转发 `-L 8901 -L 8010` 两个端口）；
+* Edge/Chrome 打开 `edge://flags/#unsafely-treat-insecure-origin-as-secure`，把
+  `http://10.112.230.11:8901` 加进白名单；
+* 直接用真机，绕开浏览器限制。
