@@ -23,10 +23,12 @@
   config:
     provider: deepseek-official
     model: deepseek-flash
-    reasoningEffort: max
+    # 陪伴场景要的是「快」而不是「想得深」：实测 max → low 后简单问答更利索
+    reasoningEffort: low
 
 # acp 条目由 @deepseek-ai/dsh-acp-app 插入，这里只覆盖模型选择
 - id: acp
   config:
     provider: deepseek-official
     model: deepseek-flash
+    reasoningEffort: low
