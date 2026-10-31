@@ -179,6 +179,11 @@ class ASRProvider(ASRProviderBase):
                     f"已配置代理 {self.proxy} 但 websockets<15 不支持（本次直连）；"
                     f"请升级: pip install -U 'websockets>=15'"
                 )
+        elif _WS_SUPPORTS_PROXY:
+            # 没配代理就显式关掉环境代理：公司网常把 socks_proxy/ALL_PROXY 设成
+            # socks://…，websockets 会去用它，然后报 “isn't a valid proxy: scheme”
+            # 直接连不上 ASR——表现为能连上设备但永远识别不出字。
+            connect_kwargs["proxy"] = None
         self.asr_ws = await websockets.connect(self.ws_url, **connect_kwargs)
         
         self.is_processing = True

@@ -151,3 +151,26 @@ NO_PROXY 含 httpx 无法解析的 IPv6 写法（如 [::1]），已规范化为:
 * Edge/Chrome 打开 `edge://flags/#unsafely-treat-insecure-origin-as-secure`，把
   `http://10.112.230.11:8901` 加进白名单；
 * 直接用真机，绕开浏览器限制。
+
+## 语音链路自测（不需要麦克风）
+
+```bash
+cd main/xiaozhi-server
+
+# 合成一句话 → 按真机协议推 opus 帧（listen start → 音频 → listen stop）
+.venv/bin/python test/e2e_voice_from_text.py --text "你好，我今天有点冷"
+
+# 只想知道云端 ASR 通不通（绕开小智服务端）
+.venv/bin/python test/debug_aliyun_asr.py
+```
+
+第一个脚本通过时会打印 `[stt] 你好，我今天有点冷` 和若干 `[tts]` 句子，最后 `RESULT: PASS`。
+
+两个坑，都是实测踩过的：
+
+* **必须补尾部静音**。阿里云流式 ASR 靠 `max_sentence_silence`（默认 800ms）断句，
+  句子结束才给 `SentenceEnd`；只推语音帧然后立刻 `listen stop`，永远等不到识别结果。
+  真实设备是一直在送帧的（没人说话也在送静音），脚本里用 `--tail 2.0` 复现这一点。
+* **没配代理时要显式关掉环境代理**。公司网常见 `socks_proxy=socks://…`，websockets
+  会拿它当代理然后报 `isn't a valid proxy: scheme`；`aliyun_stream.py` 现在没配
+  `proxy` 时会显式传 `proxy=None`，报错从“莫名其妙的代理错误”变成“连接超时”，好排查。
