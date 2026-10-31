@@ -190,7 +190,8 @@ selected_module:
   # 语音识别模块，默认使用FunASR本地模型
   ASR: FunASR
   # 将根据配置名称对应的type调用实际的LLM适配器
-  LLM: ChatGLMLLM
+  # DshAgentLLM = 交给本机 DSH agent 组织回复（见下方 LLM 段）；想回退成云端模型就换回 ChatGLMLLM
+  LLM: DshAgentLLM
   # 视觉语言大模型
   VLLM: ChatGLMVLLM
   # TTS将根据配置名称对应的type调用实际的TTS适配器
@@ -202,7 +203,8 @@ selected_module:
   # 意图识别可使用intent_llm。优点：通用性强，缺点：增加串行前置意图识别模块，会增加处理时间，支持控制音量大小等iot操作
   # 意图识别可使用function_call，缺点：需要所选择的LLM支持function_call，优点：按需调用工具、速度快，理论上能全部操作所有iot指令
   # 默认免费的ChatGLMLLM就已经支持function_call，但是如果像追求稳定建议把LLM设置成：DoubaoLLM，使用的具体model_name是：doubao-1-5-pro-32k-250115
-  Intent: function_call
+  # 用 DshAgentLLM 时选 intent_llm：DSH 不接管设备指令，音量/音乐/退出仍由独立的小模型识别
+  Intent: intent_llm
 
 # 意图识别，是用于理解用户意图的模块，例如：播放音乐
 Intent:
@@ -413,6 +415,27 @@ VAD:
     min_silence_duration_ms: 200  # 如果说话停顿比较长，可以把这个值设置大一些
 
 LLM:
+  # 把用户这句话交给本机 DSH agent（deepseek harness），拿回它的文本当回复。
+  # 数据流：设备语音 → ASR 文本 → 本适配器（ACP/stdio）→ agent 组织回复 → 服务端 TTS → 设备
+  # 先跑 deploy/dsh-agent/install.sh 建好 elder_helper_acp 配置档，再把 selected_module.LLM 切成 DshAgentLLM。
+  DshAgentLLM:
+    # 定义LLM API类型（对应 core/providers/llm/dshagent）
+    type: dshagent
+    # 启动命令：profile 名要与 install.sh 装的一致
+    command: dsh --profile elder_helper_acp
+    # agent 会话的工作目录（绝对路径；DSH 会把它当 cwd，并在这里放会话日志）
+    workspace: ~/.dsh/elder-workspace
+    # 单次问答等多久（秒）：首轮要等 agent 起进程，别设太小
+    timeout: 120
+    # 单条增量之间允许的最长静默（秒）
+    chunk_timeout: 60
+    # 空闲多久回收该设备的 agent 进程（秒）
+    idle_timeout: 1800
+    # 权限请求怎么答：allow（语音场景没人点按钮，默认放行）| deny
+    permission: allow
+    # agent 没给出正文时的兜底播报
+    fallback_reply: 抱歉，我这边暂时连不上，等会儿再问一次好吗？
+
   # 所有openai类型均可以修改超参，以AliLLM为例
   # 当前支持的type为openai、dify、ollama，可自行适配
   AliLLM:
