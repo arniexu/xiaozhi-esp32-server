@@ -3673,5 +3673,256 @@
       "source": "cli",
       "timestamp": "2026-09-27T13:05:23.712Z"
     }
+  },
+  {
+    "id": "a625565c-cc6c-4bb2-8533-f920493b93d6",
+    "question": "（2026-10-22）给 DSH Web GUI 加中文语音输入，装了什么、怎么验证、怎么回滚？",
+    "answer": "安装官方实验性语音输入插件：全局 dsh 0.1.5-rc.1 → 0.2.1-rc.2（npm i -g @deepseek-ai/dsh@0.2.1-rc.2），并向 web profile 加 @deepseek-ai/dsh-experimental-voice-input-bundle@0.2.1-rc.2（dsh plugin --profile web add，pnpm 自动写入 dsh.profile.bundles）。栈：client-ui-voice-input（录音→可编辑草稿）+ api-speech-to-text（鉴权转写）+ speech-to-text（provider 抽象）+ sensevoice（本地 SenseVoice ONNX，sherpa-onnx-node 1.13.8，模型从 huggingface/hf-mirror 首次下载）。验证：dsh --profile web --dump-config exit=0，5 个 experimental 包全部进入组合树；client.js/dsh.client 字段存在；dsh-webview-clipboard 未被 pnpm 剪掉；GUI :3080 仍 401 在线。备份 ~/.dsh/backups/voice-input-20261022-072933（含旧 package.json/lock/node_modules）；回滚 = npm i -g @deepseek-ai/dsh@0.1.5-rc.1 + 还原该备份。未做：重启 dsh web（会掐断当前会话，留给用户执行）。",
+    "timestamp": "2026-10-22T07:35:00.059Z",
+    "tags": [
+      "api",
+      "dsh",
+      "install",
+      "node",
+      "plugin",
+      "voice-input"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-10-22T07:35:00.059Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-10-22T07:35:00.060Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [],
+      "patterns": [],
+      "concepts": [
+        "api"
+      ]
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-10-22T07:35:00.001Z"
+    }
+  },
+  {
+    "id": "cc58c7d8-f880-41e1-889d-2d0e68bc6ae5",
+    "question": "（2026-10-22）DSH Web 想要更好看的 UI，为什么选 dshmarket 而不是主题包？",
+    "answer": "选社区最活跃的一个：dshmarket（1.66.45，npm 周下载 16.4 万，10-21 更新），对比 dsh-theme-studio 2008/周、@michengai/dsh-codex-ui 8536/周、dsh-theme-center 仅 53/周且 peer 停在 0.1.0-rc.6。理由：它本身是插件市场，装上后能在 UI 里浏览/一键装全部社区主题（含 theme-studio 那类），一次到位；且声明 dsh.bundle+client 注入 locale/settings/theme，与 0.2.1 对齐。安装：dsh plugin --profile web add dshmarket → 自动进 bundles 层。验证：dsh --profile web --dump-config exit=0（1323 行，dshmarket×2，voice 层仍在 1244/1248）；node_modules 保留 dsh-webview-clipboard。使用入口：0.2.1 起设置移进账号菜单 → 设置 → 插件市场；主题切换即时生效不需重启。仍待用户重启 dsh web 才加载新层。",
+    "timestamp": "2026-10-22T07:45:26.706Z",
+    "tags": [
+      "dsh",
+      "install",
+      "plugin",
+      "theme",
+      "ui"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-10-22T07:45:26.705Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-10-22T07:45:26.706Z",
+        "action": "created"
+      }
+    ],
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-10-22T07:45:26.662Z"
+    }
+  },
+  {
+    "id": "5c64daae-c6b4-4346-aab8-86c058f263f9",
+    "question": "（2026-10-22）用户要装下载量最大的 git 插件，装了哪个、代价和入口是什么？",
+    "answer": "装了 dsh-better-sidebar@0.28.0（npm 周下载 49,719，在 git 相关里断层第一；纯 git 面板第一名是 @xbzbing/dsh-git-panel 仅 1,382）。它是双工作台：原生右侧栏（文件树含 git 状态色 / Source Control 暂存提交 / 只读 commit graph / CodeMirror 编辑与 Mermaid 预览 / 任务与子 agent 拓扑 / Side Chat beta）+ 自绘底部终端面板，并暴露 ctx.betterSidebar 服务给其他插件。声明支持 DSH 0.2.1-rc.1+，与现有 CLI 0.2.1-rc.2 匹配。代价：node_modules 从 ~100K 涨到 326MB（mermaid/cytoscape/d3/codemirror/xterm 等 167 个包）；启动约 325KB 核心、重 chunk 按需。验证：dsh --profile web --dump-config exit=0，1329 行，7 层 bundle 全部在（better-sidebar×3、dshmarket×2、voice×2）；bundles 顺序把它放最后，其 disabled 守卫可避免与聚合包双挂。仍待用户重启 dsh web。回滚：dsh plugin --profile web remove dsh-better-sidebar。",
+    "timestamp": "2026-10-22T07:52:49.246Z",
+    "tags": [
+      "bundle",
+      "dsh",
+      "git",
+      "install",
+      "plugin"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "medium",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "source": "cli",
+      "autoLink": {
+        "checkedAt": "2026-10-22T07:52:49.246Z",
+        "result": "orphan"
+      },
+      "status": "active"
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-10-22T07:52:49.246Z",
+        "action": "created"
+      }
+    ],
+    "entities": {
+      "technologies": [
+        "git"
+      ],
+      "patterns": [],
+      "concepts": [
+        "cli"
+      ]
+    },
+    "provenance": {
+      "author": {
+        "name": "xuqianjin",
+        "email": "qianjinx.xu@intel.com"
+      },
+      "source": "cli",
+      "timestamp": "2026-10-22T07:52:49.201Z"
+    }
+  },
+  {
+    "id": "1793420292162-wkryon",
+    "question": "（2026-10-31）小智服务端怎么把 ASR 文本交给本机 DSH agent（elder_helper）再取回文本做 TTS？",
+    "answer": "方案：新增 LLM provider `core/providers/llm/dshagent/`，用 ACP（Agent Client Protocol，JSON-RPC over NDJSON stdio）驱动 `dsh --profile elder_helper_acp`。理由：dsh 的 ACP 应用（@deepseek-ai/dsh-acp-app）就是自动化入口，initialize→session/new→session/prompt，回答按 session/update(agent_message_chunk) 流式回来；比每条语音起一次 `dsh headless` 省掉重复冷启动，且保留会话记忆。已建成：①acp_client.py（子进程管理/请求响应/通知路由/自动应答 session/request_permission/超时与取消，仅标准库）；②dshagent.py（LLMProvider：一台设备一个常驻 agent 进程，idle_timeout 回收，只转发最后一句话，只念正文，异常时播 fallback_reply 并重建会话）；③deploy/dsh-agent/：profile/package.json+cordis.patch.yml（dsh-base+dsh-acp-app、模型 deepseek-flash+max、instructionFileCandidates: [] 屏蔽 ~/.dsh 全局 AGENTS.md 编程约束、personaPrefix 改为语音口吻）+ install.sh（幂等安装到 ~/.dsh/profiles/elder_helper_acp 并 --dump-config 校验）+ README。配置侧：selected_module.LLM=DshAgentLLM、Intent 从 function_call 改为 intent_llm（llm: DeepSeekLLM），因为 DSH 不接管设备指令，音量/音乐/退出仍要能识别。验证：test/test_dshagent.py 假 agent 4/4 通过（首轮/二轮/设备隔离/空文本）；真机冒烟 test/smoke_dshagent_live.py 与 provider 级实测均出中文口语回复；延迟实测冷启动首轮 11-17s，同会话第二轮 ~2.8s。未做：设备连上时预热、按句切分、Pi 部署验证。data/.config.yaml（gitignore）已切到该配置。",
+    "timestamp": "2026-10-31T04:18:12.162Z",
+    "tags": [
+      "acp",
+      "dsh",
+      "elder",
+      "llm",
+      "provider",
+      "voice",
+      "xiaozhi"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "high",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "status": "active",
+      "source": "mcp",
+      "entities": {
+        "technologies": [],
+        "patterns": [],
+        "concepts": [],
+        "tools": []
+      },
+      "domain": "software",
+      "autoLink": {
+        "checkedAt": "2026-10-31T04:18:12.317Z",
+        "result": "orphan"
+      }
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-10-31T04:18:12.240Z",
+        "action": "created"
+      }
+    ]
+  },
+  {
+    "id": "1793420296670-h8sw6b",
+    "question": "（2026-10-31）上游同步做到哪一步、为什么中止、怎么续上？",
+    "answer": "现状：origin（arniexu fork）无新提交，本地领先 2 个未推送提交；upstream（xinnan-tech）自 2025-07-26 分叉点起领先 2002 个提交、1287 个文件。仓库原为浅克隆（.git/shallow 边界 6cc3874），导致 merge-base 算不出来——已执行 `git fetch --unshallow origin` 补齐历史（HEAD 可达提交 72→2014），之后重算 merge-base=6066c206。在 sync/upstream-20261031 分支试合：27 个冲突文件，含 xiaozhi-server 核心（connection.py/textHandle.py/receiveAudioHandle.py/config.yaml/config_loader.py/requirements.txt/aliyun_stream.py/edge.py/mcp_handler.py/http_server.py）、manager-api Config 模块、manager-web package-lock.json、.gitignore，以及 10 个 main/digital-human/js/utils/test_*.py（与 main/xiaozhi-server/test/ 下的同名文件逐字节相同=重复文件，上游已删）。已解并验证的部分：删这 10 个重复文件、hass_get_state.py 随上游删除并把\"温度设备解析\"移植进新 hass_state.py、requirements.txt 采上游 44 行清单+保留 Pi CPU 轮子注释（核对 sherpa_onnx 1.13.8 有 aarch64 轮子）、.gitignore 取并集、agent-base-prompt.txt 取并集（保留本地 communication_style 记忆规则）。因用户插入 DSH 接入需求，合并已 `git merge --abort` 中止，分支 sync/upstream-20261031 保留（= main 无提交），已解文件备份在 /tmp/merge-partial/。恢复方式：切到该分支重跑 `git merge upstream/main`，套用备份后继续解剩余 14 个冲突。注意：upstream 的 requirements 把 torch 钉在 2.2.2/numpy 1.26.4，合并后需重新验证 Pi 依赖。",
+    "timestamp": "2026-10-31T04:18:16.670Z",
+    "tags": [
+      "git",
+      "merge",
+      "sync",
+      "upstream",
+      "xiaozhi"
+    ],
+    "files": [],
+    "status": "active",
+    "priority": "high",
+    "relationships": {
+      "supersedes": [],
+      "supersededBy": [],
+      "relatedTo": [],
+      "causes": [],
+      "causedBy": []
+    },
+    "metadata": {
+      "status": "active",
+      "source": "mcp",
+      "entities": {
+        "technologies": [
+          "git"
+        ],
+        "patterns": [],
+        "concepts": [
+          "api"
+        ],
+        "tools": []
+      },
+      "domain": "software",
+      "autoLink": {
+        "checkedAt": "2026-10-31T04:18:16.814Z",
+        "result": "orphan"
+      }
+    },
+    "commitHashes": [],
+    "history": [
+      {
+        "timestamp": "2026-10-31T04:18:16.733Z",
+        "action": "created"
+      }
+    ]
   }
 ]

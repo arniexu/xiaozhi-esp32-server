@@ -24,6 +24,8 @@
 - 2026-09-21：单例模式启动手册落盘（5bd83e4：docs/singleton-mode-start.md）——deploy 只管装、start 只管起；install-singleton-service.sh 仅 enable 不 start（首次须手动 start），CR 的 install-user-service.sh 为 enable --now；成功判据=is-active/端口 8000·8003·8765/日志无 Traceback
 - 2026-09-27：install-singleton-service 防重复安装加固——install 拒绝与系统级同名 unit 共存（install-all-services.sh 产物 /etc/systemd/system/xiaozhi-server.service），start/restart 在系统级运行/enabled 时拒绝，uninstall 残留提示，install 区分“已安装/已更新”（幂等）；全模块脚本反向提示；docs 同步（deploy §4 / start §0+§7）。验证=沙箱 8 用例 + 真机拒绝；另发现本机 /etc/systemd/system/xiaozhi-server.service 为 9-12 遗留（enabled+activating 重启循环、约 1 小时 1838 行日志），待 sudo 清理（清理后用户级安装才能执行）
 
+- 2026-10-31：DSH 接入落地（b1ca84d2，决策 1793420292162-wkryon）——新增 dshagent LLM provider，ACP/stdio 驱动 `dsh --profile elder_helper_acp`（dsh-base+dsh-acp-app，deepseek-flash，屏蔽全局 AGENTS.md，语音口吻 persona）；选中 LLM=DshAgentLLM，Intent 改 intent_llm(DeepSeekLLM) 以保住音量/音乐/退出；实测冷启 11-17s、热 2.8s。（continuity 试用到期，本段为手工补记）
+
 ## 🚧 Blockers & Challenges
 - 完整模式部署前置（如采用）：本机 Java/Maven 未装、当前用户不在 docker 组、8000 端口被 pyserver 占用
 
@@ -41,6 +43,9 @@
 - 召回增强：xiaozhi 侧 embedding 通道（复刻 extension embed → 语义通道生效，修'名字/近义'盲区）
 - CR 侧标准语义化 P1-P4（strict_workspace / CJK OR 回退 / include_graph / supersede）
 - Pi 5 安装完成（2026-09-21）→ 执行：① `bash main/xiaozhi-server/scripts/run-acceptance.sh`（期望 3/3）；② 三项判据（is-active / 端口 8000·8003·8765 / 日志无 Traceback）；③ 依赖体检（torch=+cpu 版、sherpa_onnx=1.12.40、无 nvidia 目录）；④ 设备端 ≥3 轮→断开重连→召回；⑤ 组织质量观察（需智谱 key）
+
+- 2026-10-31：上游同步做到一半（决策 1793420296670-h8sw6b）——unshallow 后 merge-base=6066c206，upstream 领先 2002 提交、27 个冲突；已解 5 处、备份 /tmp/merge-partial/，分支 sync/upstream-20261031 保留；恢复=重跑 merge 后解剩余 14 个，再重验 Pi 依赖。
+- 2026-10-31：DSH 接入待办——设备 hello 时预热 agent、按句切分送 TTS、树莓派重跑 install.sh 并联调。
 
 ## 📝 Open Questions
 <!-- No entries yet -->
