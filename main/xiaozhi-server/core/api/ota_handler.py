@@ -11,23 +11,28 @@ class OTAHandler(BaseHandler):
     def __init__(self, config: dict):
         super().__init__(config)
 
-    def _get_websocket_url(self, local_ip: str, port: int) -> str:
+    def _get_websocket_url(self, local_ip: str, port: int, host: str = "") -> str:
         """获取websocket地址
 
-        Args:
-            local_ip: 本地IP地址
-            port: 端口号
-
-        Returns:
-            str: websocket地址
+        优先级：
+          1. server.websocket 显式配置（写死了就用它）；
+          2. 设备访问 OTA 时用的 host（server.websocket_echo_host，默认开）——
+             这样经 SSH 隧道/反向代理/多网卡进来时，回给设备的是它自己能连上的地址，
+             而不是服务器按自己网卡算出来的那个；
+          3. 服务器本机 IP 兜底。
         """
         server_config = self.config["server"]
         websocket_config = server_config.get("websocket", "")
 
-        if "你的" not in websocket_config:
+        if websocket_config and "你的" not in websocket_config:
             return websocket_config
-        else:
-            return f"ws://{local_ip}:{port}/xiaozhi/v1/"
+
+        if host and server_config.get("websocket_echo_host", True):
+            hostname = host.split(":")[0].strip("[]")
+            if hostname:
+                return f"ws://{hostname}:{port}/xiaozhi/v1/"
+
+        return f"ws://{local_ip}:{port}/xiaozhi/v1/"
 
     async def handle_post(self, request):
         """处理 OTA POST 请求"""
@@ -59,7 +64,7 @@ class OTAHandler(BaseHandler):
                     "url": "",
                 },
                 "websocket": {
-                    "url": self._get_websocket_url(local_ip, port),
+                    "url": self._get_websocket_url(local_ip, port, request.host),
                 },
             }
             response = web.Response(
@@ -82,7 +87,7 @@ class OTAHandler(BaseHandler):
             server_config = self.config["server"]
             local_ip = get_local_ip()
             port = int(server_config.get("port", 8000))
-            websocket_url = self._get_websocket_url(local_ip, port)
+            websocket_url = self._get_websocket_url(local_ip, port, request.host)
             message = f"OTA接口运行正常，向设备发送的websocket地址是：{websocket_url}"
             response = web.Response(text=message, content_type="text/plain")
         except Exception as e:

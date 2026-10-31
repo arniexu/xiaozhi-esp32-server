@@ -243,3 +243,24 @@ python3 deploy/dsh-agent/apply-persona.py --only web # 只装 web 档
 
 - web：`哎哟，腿疼可别硬撑着。一个人在家也别总觉着麻烦孩子，这事儿咱先自己看明白。` / `我想先问一句：您是走路的时候疼，还是坐着不动也疼？`
 - 语音档：`哎哟，腿疼可别硬撑着，先坐下歇会儿。` / `我想先问一句：腿疼是走路的时候才疼，还是坐着不动也疼？`
+
+## OTA 下发的 websocket 地址：回显设备用的 host
+
+设备连服务器前会先请求 OTA，服务器把 websocket 地址回给它。老逻辑是按**服务器自己的网卡**算
+（`ws://10.112.230.11:8010/...`），于是经 SSH 隧道/反向代理进来的设备会被指回服务器。
+
+现在改成**回显设备访问 OTA 时用的 host**，优先级：
+
+1. `server.websocket` 显式配置（写死了就用它，包含"你的"占位符则视为没配）；
+2. `server.websocket_echo_host`（默认 `true`）→ 用请求的 `Host` 头；
+3. 服务器本机 IP 兜底。
+
+实测（同一台服务器）：
+
+```bash
+curl http://10.112.230.11:8003/xiaozhi/ota/                      # → ws://10.112.230.11:8010/xiaozhi/v1/
+curl -H 'Host: 192.168.1.50:8003' http://10.112.230.11:8003/xiaozhi/ota/   # → ws://192.168.1.50:8010/xiaozhi/v1/
+```
+
+所以设备只要**OTA 地址填的是隧道侧的 Windows IP**，拿到的 websocket 地址也会是那个 IP，
+不用在服务器上写死。想保持旧行为：`server.websocket_echo_host: false`。
