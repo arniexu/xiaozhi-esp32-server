@@ -174,3 +174,38 @@ cd main/xiaozhi-server
 * **没配代理时要显式关掉环境代理**。公司网常见 `socks_proxy=socks://…`，websockets
   会拿它当代理然后报 `isn't a valid proxy: scheme`；`aliyun_stream.py` 现在没配
   `proxy` 时会显式传 `proxy=None`，报错从“莫名其妙的代理错误”变成“连接超时”，好排查。
+
+## elder_helper 的 web UI（3081）：大字号 + 请求实时日志
+
+插件源码：[deploy/dsh-agent/elder-ui/index.mjs](elder-ui/index.mjs)，挂在
+`~/.dsh/profiles/elder_helper/cordis.patch.yml`：
+
+```yaml
+- insert:
+    - id: elder-ui
+      name: file:///home/xuqj/.dsh/plugins/elder-ui/index.mjs
+```
+
+两件事：
+
+1. **请求实时打印**：挂 `agent/pre-step`，每次推理前把最后一条 user 消息写到
+   `~/.dsh/logs/elder-prompts.log`，同时打到 dsh 进程 stdout。
+   ```
+   [07:55:38] 8722e99f 用户: 今天外面天气怎么样
+   ```
+   看实时流：`tail -f ~/.dsh/logs/elder-prompts.log`
+2. **老人友好 CSS**：通过 `webServer.tapIndex` 注入 `<style data-elder-ui>`，
+   放大字号/行高、按钮与输入框加大。纯 CSS，刷新页面即生效。
+
+> 注意：`agent/pre-step` 是 **waterfall** 事件，处理函数必须 `return next()`；
+> 只写副作用不调用 next 会把推理链打断，页面报
+> `This turn failed: Cannot read properties of undefined (reading 'kind')`（已被这个坑坑过）。
+
+启动与查看：
+
+```bash
+cd /tmp && setsid nohup dsh --profile elder_helper --port 3081 \
+  > ~/.dsh/logs/elder-web.log 2>&1 < /dev/null &
+grep -o 'http://127.0.0.1:3081/?token=[A-Za-z0-9_-]*' ~/.dsh/logs/elder-web.log | tail -1
+tail -f ~/.dsh/logs/elder-prompts.log      # 看收到的话
+```
