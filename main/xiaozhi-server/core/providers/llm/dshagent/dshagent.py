@@ -54,6 +54,8 @@ class LLMProvider(LLMProviderBase):
         os.makedirs(self.workspace, exist_ok=True)
 
         self._sessions: Dict[str, _AgentSession] = {}
+        # 同一设备并发预热/请求时，只允许一个线程在建会话
+        self._starting: Dict[str, threading.Event] = {}
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------ 接口
@@ -96,52 +98,86 @@ class LLMProvider(LLMProviderBase):
             except Exception:
                 pass
 
+    def prewarm(self, session_id) -> bool:
+        """提前把 agent 会话建起来（设备刚连上、还没开口时调）。
+
+        首轮冷启动要 10s 级（node 起进程 + 插件装载），挪到用户开口之前，
+        第一句话的延迟就能降到跟第二句差不多。
+        """
+        try:
+            self._ensure_session(session_id)
+            return True
+        except Exception as exc:
+            logger.bind(tag=TAG).warning(f"agent 预热失败（不影响后续按需启动）: {exc}")
+            return False
+
     # ---------------------------------------------------------------- 内部实现
 
     def _ensure_session(self, xiaozhi_session_id: str) -> Tuple[AcpClient, str]:
-        now = time.monotonic()
-        with self._lock:
-            stale = [
-                sid
-                for sid, item in self._sessions.items()
-                if now - item.last_used > self.idle_timeout
-            ]
-            for sid in stale:
-                item = self._sessions.pop(sid)
-                self._close_item(item)
-                logger.bind(tag=TAG).info(f"回收闲置 agent 会话 {sid}")
+        # 预热线程和真正的请求可能同时进来：同一设备只允许一个在建，另一个等它建好
+        while True:
+            with self._lock:
+                self._reap_idle_locked()
+                item = self._sessions.get(xiaozhi_session_id)
+                if item is not None and item.client.alive:
+                    item.last_used = time.monotonic()
+                    return item.client, item.session_id
+                if item is not None:  # 进程死了，重建
+                    self._sessions.pop(xiaozhi_session_id, None)
+                    self._close_item(item)
 
-            item = self._sessions.get(xiaozhi_session_id)
-            if item is not None and item.client.alive:
-                item.last_used = now
-                return item.client, item.session_id
-            if item is not None:  # 进程死了，重建
-                self._sessions.pop(xiaozhi_session_id, None)
-                self._close_item(item)
+                waiting = self._starting.get(xiaozhi_session_id)
+                if waiting is None:
+                    waiting = threading.Event()
+                    self._starting[xiaozhi_session_id] = waiting
+                    break
+            # 别人正在建这条会话，等它出结果再重试
+            waiting.wait(timeout=self.request_timeout)
 
-        # 建连接放在锁外，避免一次慢启动把所有设备堵住
-        client = AcpClient(
-            self.command,
-            cwd=self.workspace,
-            request_timeout=self.request_timeout,
-            chunk_timeout=self.chunk_timeout,
-            permission=self.permission,
-        )
-        client.start()
+        # 建连接放在锁外，避免一次慢启动把所有设备都堵住
         try:
-            client.initialize()
-            agent_session_id = client.new_session(self.workspace)
+            client = AcpClient(
+                self.command,
+                cwd=self.workspace,
+                request_timeout=self.request_timeout,
+                chunk_timeout=self.chunk_timeout,
+                permission=self.permission,
+            )
+            client.start()
+            try:
+                client.initialize()
+                agent_session_id = client.new_session(self.workspace)
+            except Exception:
+                client.close()
+                raise
         except Exception:
-            client.close()
+            with self._lock:
+                self._starting.pop(xiaozhi_session_id, None)
+            waiting.set()
             raise
 
         item = _AgentSession(client, agent_session_id)
         with self._lock:
             self._sessions[xiaozhi_session_id] = item
+            self._starting.pop(xiaozhi_session_id, None)
+        waiting.set()
         logger.bind(tag=TAG).info(
             f"agent 会话就绪 device={xiaozhi_session_id} acp={agent_session_id}"
         )
         return client, agent_session_id
+
+    def _reap_idle_locked(self) -> None:
+        now = time.monotonic()
+        stale = [
+            sid
+            for sid, item in self._sessions.items()
+            if now - item.last_used > self.idle_timeout
+        ]
+        for sid in stale:
+            item = self._sessions.pop(sid)
+            self._close_item(item)
+            logger.bind(tag=TAG).info(f"回收闲置 agent 会话 {sid}")
+
 
     def _drop_session(self, xiaozhi_session_id: str) -> None:
         with self._lock:

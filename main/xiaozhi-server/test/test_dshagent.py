@@ -53,6 +53,19 @@ def main():
     if empty != "":
         failures.append(f"空文本产生了回复：{empty!r}")
 
+    # 预热：进程/会话应在用户开口前就建好，且不重复建
+    if not provider.prewarm("device-3"):
+        failures.append("prewarm 返回 False")
+    warm_sessions = len(provider._sessions)
+    if provider._sessions.get("device-3") is None:
+        failures.append("prewarm 之后 device-3 没有会话")
+    provider.prewarm("device-3")  # 幂等
+    if len(provider._sessions) != warm_sessions:
+        failures.append("重复 prewarm 建了多余会话")
+    reply3 = _collect(provider, "device-3", "预热后第一句")
+    if reply3 != "收到：预热后第一句（第 1 次）":
+        failures.append(f"预热会话首句不符：{reply3!r}")
+
     provider.close()
 
     if failures:
@@ -60,7 +73,7 @@ def main():
         for item in failures:
             print(" -", item)
         return 1
-    print("PASS 4/4  (首轮/二轮/设备隔离/空文本)")
+    print("PASS 5/5  (首轮/二轮/设备隔离/空文本/预热)")
     return 0
 
 

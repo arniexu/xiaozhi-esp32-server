@@ -592,6 +592,9 @@ class ConnectionHandler:
         if modules.get("memory", None) is not None:
             self.memory = modules["memory"]
 
+        # DSH 这类本地 agent 首轮冷启动要 10s 级：连接建好就预热，别等用户开口
+        self._prewarm_llm()
+
         # 记录本次生效的角色，供切换回执与后续复用
         resolved_agent_id = private_config.get("agent_id")
         if resolved_agent_id:
@@ -604,6 +607,27 @@ class ConnectionHandler:
         if resolved_name:
             self.agent_name = resolved_name
         return private_config
+
+    def _prewarm_llm(self):
+        """给支持预热的 LLM（如 dshagent）提前建会话。
+
+        本地 agent 首轮要起子进程、装插件，10s 级；放在连接建立时预热，
+        用户第一句话就能按稳态延迟处理。失败只记日志，不影响后续按需启动。
+        """
+        prewarm = getattr(self.llm, "prewarm", None)
+        if not callable(prewarm):
+            return
+        session_id = self.session_id
+        logger = self.logger
+
+        def _run():
+            try:
+                ok = prewarm(session_id)
+                logger.bind(tag=TAG).info(f"LLM 预热{'完成' if ok else '失败（将按需启动）'}")
+            except Exception as exc:  # 预热永远不是致命路径
+                logger.bind(tag=TAG).warning(f"LLM 预热异常: {exc}")
+
+        threading.Thread(target=_run, name="llm-prewarm", daemon=True).start()
 
     async def handle_agent_message(self, msg_json):
         """处理设备的角色（智能体）切换请求。

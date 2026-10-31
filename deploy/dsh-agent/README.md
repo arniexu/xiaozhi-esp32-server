@@ -76,6 +76,8 @@ Intent:
 
 * **一台设备一个常驻 agent 进程**：`session_id` 作键，首次说话建进程，空闲 `idle_timeout`
   回收；进程挂了下次自动重建。
+* **连接即预热**：连接建立（`_initialize_components`）后立刻在后台线程 `session/new`，
+  把冷启动挪到用户开口之前；同一设备并发预热/请求只起一个进程。
 * **只转发最后一句话**：多轮上下文由 agent 自己的会话记忆负责，服务端 dialogue/记忆不再
   回灌——避免两套记忆互相打架。
 * **只念正文**：`agent_message_chunk` 的文本才进 TTS，思考过程、工具调用一律丢弃。
@@ -85,12 +87,13 @@ Intent:
 
 ## 实测延迟（开发机，deepseek-flash）
 
-| 场景 | 首字延迟 | 说明 |
+| 场景 | 耗时 | 说明 |
 |---|---|---|
-| 冷启动第一轮 | 11–17 s | 含 node 起进程、插件装载 |
-| 同会话第二轮 | ~2.8 s | 进程复用后的稳态 |
+| agent 会话就绪（预热） | 5–11 s | 连接后后台完成，不占用户等待 |
+| 同会话第二轮（纯对话） | ~2.8 s | 进程复用后的稳态 |
+| 端到端首帧音频（含天气类工具调用） | ~27 s | 链路：意图→agent→工具→TTS 首帧 |
 
-首轮偏慢，如果在意可以后续在设备连上时预热进程（见“后续可做”）。
+首帧那 27 s 里大头是 agent 自己的推理/工具调用，不是转接开销；纯寒暄类问题会短得多。
 
 ## 自测
 
@@ -98,15 +101,23 @@ Intent:
 cd main/xiaozhi-server
 
 # 1) 协议层：不用 DSH，用假 agent 验客户端/适配器逻辑
-.venv/bin/python test/test_dshagent.py          # PASS 4/4
+.venv/bin/python test/test_dshagent.py          # PASS 5/5（含预热）
 
 # 2) 真机：连本机 DSH agent，打印一条回复
 .venv/bin/python test/smoke_dshagent_live.py
+
+# 3) 端到端：伪装设备连服务端，listen/detect 带 text 绕开 ASR，验证到 TTS 音频帧
+.venv/bin/python test/e2e_text_to_voice.py --text "你好，我今天有点冷，想喝点热的"
 ```
+
+第 3 项通过的样子：`[stt]` 回显 → `[tts]` 打印 agent 回复的句子 → `音频帧: 262 帧 / 28306 字节`。
+
+> TTS 依赖：`edge_tts>=7.3.1`。7.2.x 会稳定拿到 403 Invalid response status（本机 2026-10-31
+> 实测 7.2.8 全挂、升 7.3.1 立即恢复），requirements.txt 已改。
 
 ## 后续可做
 
-* **预热**：设备连上（`hello`）时就 `session/new`，把 11 s 的冷启动挪到用户还没开口之前。
 * **流式切句**：现在按 chunk 直接交给 TTS；若要更自然的停顿，可在句号/问号处切分。
 * **人设收敛**：语音人设写在配置档的 `system-prompt.personaPrefix` 里，改完重启 agent 生效。
 * **拒绝策略**：`permission: deny` 可以禁止 agent 自行调用工具，只让它“纯聊天”。
+* **降时延**：首帧 27 s 主要花在 agent 的推理/工具调用上，可考虑让它对该场景少调工具。
