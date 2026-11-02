@@ -5,23 +5,23 @@
 This file contains project context and decisions. AI assistants should read this file for context. MCP tools are an optional enhancement for richer interaction when connected.
 
 ## Project Context
-- **Total Decisions:** 69
+- **Total Decisions:** 70
 - **Known Topics:** xiaozhi, context-recall, product, memory, deploy, api, decision, python, companion, llm, sqlite, edge, deepseek, architecture, single-device
 
 ## Current State
 **Repository:** xiaozhi-esp32-server
 **Project Type:** Software Project
 **Branch:** main
-**Tracking:** ahead 3, behind 0
 
 **Recent Commits:**
+- `e174925 chore(continuity)：协作配置再同步`
+- `d237a2e chore(continuity)：同步（单例脚本维护集成）`
+- `9e3dd71 feat(scripts)：install-singleton-service 集成日常维护子命令（start/stop/restart/status/logs/uninstall）+ 文档同步`
 - `2af5440 chore(continuity)：同步（服务文件命名修正）`
 - `abe8d56 fix(services)：修正上游笔误 main/xixaozhi-server.service → main/xiaozhi-server.service，同步安装脚本/部署 agent/单例方案引用`
-- `b3624ed chore(continuity)：同步（临时文件核查决策入库）`
-- `fa9b71a chore(vexp)：刷新索引清单`
-- `2adce9c chore(continuity)：CLAUDE/GEMINI 同步（66 条）`
 
 **Working Tree:**
+- M .continuity/SESSION_NOTES.md
 - M .continuity/decisions.json
 - M .continuity/decisions.jsonl
 - M .cursorrules
@@ -69,25 +69,25 @@ Describe how this repository prefers to work with AI assistants.
 ---
 
 ## Recent Decisions
-1. **decision-8eb217a5** (9/27/2026) [script, service]
+1. **decision-825d1940** (9/27/2026) [deploy, script]
+   - Q: （2026-09-27）install-singleton 脚本会不会引入重复安装（树莓派空间有限）？
+   - A: 结论：脚本本身不会——install 幂等，重复执行只覆盖同一用户级 unit（~/.config/systemd/user/xiaozhi-server.service），不复制仓库/venv，磁盘开销仅 1KB unit 文件。真实重复安装风险=与全模块安装的系统级同名 unit（install-all-services.sh 产物 /etc/systemd/system/xiaozhi-server.service）共存 → 双实例抢端口、失败重启循环、日志重复写；已修复：install 检测到系统级同名 unit 一律拒绝并给 sudo 清理命令，start/restart 在系统级运行中或 enabled 时拒绝，uninstall 残留提示，install-all-services.sh 反向提示，docs 同步（deploy §4 / start §0+§7）；提交 64cdc92。验证：bash -n ×2；沙箱 8 用例（幂等/冲突拒绝/start 三态/uninstall/未安装守卫）全过；真机 install 正确拒绝且不落盘。附带发现：本机 /etc/systemd/system/xiaozhi-server.service 为 9-12 遗留（enabled+activating 重启循环，1 小时 1838 行日志），待 sudo 清理后本机才能执...
+
+2. **decision-8eb217a5** (9/27/2026) [script, service]
    - Q: （2026-09-27）把日常维护集成进 install-singleton-service.sh？
    - A: 已实现：脚本改为子命令式（不带参数=install，向后兼容）：install/start/stop/restart/status/logs/uninstall/help；除 install 外命令带未安装守卫与提示；install 后按运行状态给出 start/restart 提示；uninstall 仅动 unit 文件不动数据。文档同步：singleton-mode-deploy §4（改子命令用法）、singleton-mode-start（首次启动说明+§2 速查表加脚本注）。本机未实际安装（开发机仍 nohup），已验证 bash -n / help / 未安装守卫 / 未知命令。
 
-2. **decision-9a36f685** (9/27/2026) [fix, repo]
+3. **decision-9a36f685** (9/27/2026) [fix, repo]
    - Q: （2026-09-27）main/xixaozhi-server.service 文件名是不是搞错了（xixaozhi→xiaozhi）？
    - A: 确认：上游提交 6cc3874 带入的笔误文件名（内容拼写正确）。功能上 install-all-services.sh 复制安装时会落为正确的 xiaozhi-server.service 单元名（本机 /etc/systemd/system/xiaozhi-server.service 即正确名字），但仓库源文件名笔误易误导。已处置：git mv 重命名为 main/xiaozhi-server.service + 同步 3 处引用（install-all-services.sh 存在性检查/安装路径/注释、.github/agents/xiaozhi-server-deploy.agent.md、docs/singleton-mode-plan.md）；内容层旧坑（/home/xuqianjin 路径、User=root、sudo python3、Requires=manager-web）保留待单例改造。
 
-3. **decision-ff400f9a** (9/27/2026) [disk, tmp]
+4. **decision-ff400f9a** (9/27/2026) [disk, tmp]
    - Q: （2026-09-27）xiaozhi-server 运行中会产生大量临时文件吗（Pi/SD 卡写放大关心）？
    - A: 实测+代码核查：默认不会。①开关=顶层 delete_audio（config.yaml:59=true；modules_initialize.py 读取后传给 TTS/ASR 的 delete_audio_file 参数）：true=音频全程内存（TTS to_tts 直接返回 bytes、不写文件），ASR 临时 wav 处理后即删，流式 ASR（当前 AliyunStreamASR）完全不落盘；②实际落盘仅有：日志 tmp/server.log（loguru rotation 10MB/文件 + retention 30 天；本机 6 天仅 285KB）、uploads/（视觉/人脸图片按需上传，现 1 张 160K，按日期建目录）、data/context_recall/<device>/turns.jsonl（按轮追加文本，KB 级）、data/ 下小 JSON；③唯一会'大量产生'的场景=把 delete_audio 设为 false（调试用）：TTS 每句写 tts-<日期>@<uuid> 文件到 output_dir: tmp/ 且无自动清理，ASR 临时 wav 也保留（fun_local 自带宽限检查）；④结论：默认配置写放大极小，Pi/SD 卡友好；若要进一步减写可提高 log_level 或定期清 tmp。
 
-4. **decision-73dfc2ce** (9/27/2026) [bridge, copilot]
+5. **decision-73dfc2ce** (9/27/2026) [bridge, copilot]
    - Q: （2026-09-27）A/B/C 三拓扑都要支持，不限定时如何补齐跨机直连（拓扑 C）？
    - A: 已落地：扩展 v0.2.0 新增 xiaozhiBridge.bindAddress（默认 127.0.0.1）与 xiaozhiBridge.token（非空校验；不符回 error 后断开 4001）；服务端 copilot_bridge 新增 token（随 request/cancel 下发）；install-remote.sh 清理旧版本。测试 28/28（新增令牌一致/不符）。三拓扑：A 同机默认；B SSH 隧道零配置；C 直连两侧配置即可。当前实例已重启加载（token 默认空=行为不变）；窗口 reload 后加载 v0.2.0。
-
-5. **decision-43da2780** (9/27/2026) [bridge, copilot]
-   - Q: （2026-09-27）小智服务器切到其他服务器时，Copilot 桥接如何部署？
-   - A: 三拓扑定案并写入 docs/copilot-bridge-plan.md §11：A=同机零改动（新机装扩展 install-remote.sh/reload + 服务端 url 保持 localhost + 重启）；B=分机+SSH隧道【推荐、零代码】(X 上 ssh -L 8767:127.0.0.1:8767 user@Y，或 Y 上 ssh -R 8767:127.0.0.1:8767 user@X；user systemd 常驻 + linger；服务端配置不变)；C=分机+直连（需新增扩展 xiaozhiBridge.bindAddress + 共享令牌校验，服务端 url 指向 Y，尚未实现）。首要前提：新服务器跑本 fork 代码（官方/第三方服无服务端一半）。共同限制：扩展随 VS Code 窗口存活；配额跟随登录账号；会话在扩展内存（重启丢上下文）；设备/固件零改动。
 
 ---
 

@@ -266,7 +266,8 @@ class ConnectionHandler:
                         )
                         self.memory.init_memory(
                             role_id=memory_role_id,
-                            llm=self.llm,
+                            # 用连接上记住的「记忆专用 LLM」，否则会被主 LLM（陪伴 agent）覆盖
+                            llm=getattr(self, "memory_llm", None) or self.llm,
                             summary_memory=self.config.get("summaryMemory", None),
                             save_to_file=not self.read_config_from_api,
                         )
@@ -386,6 +387,7 @@ class ConnectionHandler:
             )
             if self.tts is None:
                 self.tts = self._initialize_tts()
+            self._prewarm_tts()
             # 打开语音合成通道
             asyncio.run_coroutine_threadsafe(
                 self.tts.open_audio_channels(self), self.loop
@@ -592,6 +594,9 @@ class ConnectionHandler:
         if modules.get("memory", None) is not None:
             self.memory = modules["memory"]
 
+        # DSH 这类本地 agent 首轮冷启动要 10s 级：连接建好就预热，别等用户开口
+        self._prewarm_llm()
+
         # 记录本次生效的角色，供切换回执与后续复用
         resolved_agent_id = private_config.get("agent_id")
         if resolved_agent_id:
@@ -604,6 +609,49 @@ class ConnectionHandler:
         if resolved_name:
             self.agent_name = resolved_name
         return private_config
+
+    def _prewarm_tts(self):
+        """把高频应答（"我看看啊。"）先合成好放进短语缓存。
+
+        首轮的第一声就是这句话，预合成之后它直接从缓存出，连 TTS 都不用跑。
+        文案从 config 的 tts_prewarm_texts 读，默认跟 dshagent 的 ack_text 对齐。
+        """
+        tts = getattr(self, "tts", None)
+        if tts is None or not hasattr(tts, "to_tts"):
+            return
+        texts = self.config.get("tts_prewarm_texts") or ["我看看啊。"]
+        logger = self.logger
+
+        def _run():
+            for text in texts:
+                try:
+                    tts.to_tts(text)
+                    logger.bind(tag=TAG).info(f"TTS 预合成完成: {text}")
+                except Exception as exc:  # 预热失败不影响主流程
+                    logger.bind(tag=TAG).warning(f"TTS 预合成失败 {text}: {exc}")
+
+        threading.Thread(target=_run, name="tts-prewarm", daemon=True).start()
+
+    def _prewarm_llm(self):
+        """给支持预热的 LLM（如 dshagent）提前建会话。
+
+        本地 agent 首轮要起子进程、装插件，10s 级；放在连接建立时预热，
+        用户第一句话就能按稳态延迟处理。失败只记日志，不影响后续按需启动。
+        """
+        prewarm = getattr(self.llm, "prewarm", None)
+        if not callable(prewarm):
+            return
+        session_id = self.session_id
+        logger = self.logger
+
+        def _run():
+            try:
+                ok = prewarm(session_id)
+                logger.bind(tag=TAG).info(f"LLM 预热{'完成' if ok else '失败（将按需启动）'}")
+            except Exception as exc:  # 预热永远不是致命路径
+                logger.bind(tag=TAG).warning(f"LLM 预热异常: {exc}")
+
+        threading.Thread(target=_run, name="llm-prewarm", daemon=True).start()
 
     async def handle_agent_message(self, msg_json):
         """处理设备的角色（智能体）切换请求。
@@ -700,11 +748,13 @@ class ConnectionHandler:
         # 如果使用 nomen，直接返回
         if memory_type == "nomem":
             return
-        # 使用 mem_local_short 模式
-        elif memory_type == "mem_local_short":
-            memory_llm_name = memory_config[self.config["selected_module"]["Memory"]][
-                "llm"
-            ]
+        # 记忆组织/总结专用模型：配置里写了 llm 就用它（mem_local_short / context_recall 等
+        # 任何 provider 都适用）。不写则退回主 LLM——但主 LLM 若是陪伴型 agent（不吐 JSON），
+        # 组织会解析失败并降级成"原始会话记录"，记忆就只剩噪声。
+        elif memory_type in ("mem_local_short", "context_recall"):
+            memory_llm_name = (
+                memory_config[self.config["selected_module"]["Memory"]] or {}
+            ).get("llm")
             if memory_llm_name and memory_llm_name in self.config["LLM"]:
                 # 如果配置了专用LLM，则创建独立的LLM实例
                 from core.utils import llm as llm_utils
@@ -718,10 +768,13 @@ class ConnectionHandler:
                     f"为记忆总结创建了专用LLM: {memory_llm_name}, 类型: {memory_llm_type}"
                 )
                 self.memory.set_llm(memory_llm)
+                # 记在连接上：保存记忆时 init_memory 会重绑 LLM，这里必须用专用模型
+                self.memory_llm = memory_llm
             else:
                 # 否则使用主LLM
                 self.memory.set_llm(self.llm)
-                self.logger.bind(tag=TAG).info("使用主LLM作为意图识别模型")
+                self.memory_llm = self.llm
+                self.logger.bind(tag=TAG).info("使用主LLM作为记忆总结模型")
 
     def _initialize_intent(self):
         if self.intent is None:

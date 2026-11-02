@@ -610,7 +610,7 @@
         let audioBufferQueue = [];     // 存储接收到的音频包
         let isAudioBuffering = false;  // 是否正在缓冲音频
         let isAudioPlaying = false;    // 是否正在播放音频
-        const BUFFER_THRESHOLD = 3;    // 缓冲包数量阈值，至少累积3个包再开始播放
+        const BUFFER_THRESHOLD = 10;    // 缓冲包数量阈值，至少累积3个包再开始播放
         const MIN_AUDIO_DURATION = 0.1; // 最小音频长度(秒)，小于这个长度的音频会被合并
         let streamingContext = null;   // 音频流上下文
         const SAMPLE_RATE = 16000;     // 采样率
@@ -627,6 +627,19 @@
         const stopButton = document.getElementById('stopButton');
         const conversationDiv = document.getElementById('conversation');
         const logContainer = document.getElementById('logContainer');
+
+        // 页面经端口转发/局域网打开时，127.0.0.1 指的是「你本机」而不是服务器。
+        // 默认把地址换成与当前页面相同的 host（端口保持 8010/8003），手动改过的不动。
+        (function preferCurrentHost() {
+            const host = window.location.hostname || '127.0.0.1';
+            const otaInput = document.getElementById('otaUrl');
+            if (otaInput && /127\.0\.0\.1|localhost/i.test(otaInput.value)) {
+                otaInput.value = `http://${host}:8003/xiaozhi/ota/`;
+            }
+            if (serverUrlInput && /127\.0\.0\.1|localhost/i.test(serverUrlInput.value)) {
+                serverUrlInput.value = `ws://${host}:8010/xiaozhi/v1/`;
+            }
+        })();
 
         // 日志函数
         function log(message, type = 'info') {
@@ -705,6 +718,29 @@
             conversationDiv.scrollTop = conversationDiv.scrollHeight;
         }
 
+
+        // 把播放状态整个归零：被打断、换一轮、或者卡住时调用
+        // 不重置的话 isAudioPlaying 会一直挂着 true，后面收到的音频包只进队列不播
+        function resetAudioPlayback(reason) {
+            try {
+                if (streamingContext && streamingContext.source) {
+                    try {
+                        streamingContext.source.onended = null;
+                        streamingContext.source.stop();
+                    } catch (e) {}
+                    streamingContext.source = null;
+                }
+            } catch (e) {}
+
+            streamingContext = null;
+            audioBufferQueue = [];
+            isAudioPlaying = false;
+            isAudioBuffering = false;
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume().catch(() => {});
+            }
+            log(`播放状态已重置${reason ? '（' + reason + '）' : ''}`, 'info');
+        }
 
         // 开始音频缓冲过程
         function startAudioBuffering() {
@@ -822,93 +858,89 @@
 
                                     // 如果累积了至少0.2秒的音频，开始播放
                                     const minSamples = SAMPLE_RATE * MIN_AUDIO_DURATION;
-                                    if (!this.playing && this.queue.length >= minSamples) {
-                                        this.startPlaying();
+                                    if (this.queue.length >= minSamples) {
+                                        this.pump();
                                     }
                                 } else {
                                     log('没有成功解码的样本', 'warning');
                                 }
                             },
 
-                            // 开始播放音频
-                            startPlaying: function () {
-                                if (this.playing || this.queue.length === 0) return;
+                            // 按音频时钟预约播放：一片接一片排在时钟上，不在回调里现起。
+                            // 原来的写法是「放完 → onended → 10ms 定时器 → 再起下一片」，
+                            // 每片之间都会漏出一段空白，听感就是一字一顿。
+                            nextTime: 0,
+                            started: false,
+                            idleTimer: null,
 
-                                this.playing = true;
+                            scheduleSlice: function () {
+                                if (this.queue.length === 0) return false;
+                                if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; }
+                                const maxSamples = SAMPLE_RATE * 2; // 一片最多 2 秒，减少边界
+                                const n = Math.min(this.queue.length, maxSamples);
+                                const samples = this.queue.splice(0, n);
 
-                                // 创建新的音频缓冲区
-                                const minPlaySamples = Math.min(this.queue.length, SAMPLE_RATE); // 最多播放1秒
-                                const currentSamples = this.queue.splice(0, minPlaySamples);
+                                const audioBuffer = audioContext.createBuffer(CHANNELS, samples.length, SAMPLE_RATE);
+                                audioBuffer.copyToChannel(new Float32Array(samples), 0);
 
-                                const audioBuffer = audioContext.createBuffer(CHANNELS, currentSamples.length, SAMPLE_RATE);
-                                audioBuffer.copyToChannel(new Float32Array(currentSamples), 0);
-
-                                // 创建音频源
-                                this.source = audioContext.createBufferSource();
-                                this.source.buffer = audioBuffer;
-
-                                // 创建增益节点用于平滑过渡
+                                const src = audioContext.createBufferSource();
+                                src.buffer = audioBuffer;
                                 const gainNode = audioContext.createGain();
 
-                                // 应用淡入淡出效果避免爆音
-                                const fadeDuration = 0.02; // 20毫秒
-                                gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-                                gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + fadeDuration);
-
-                                const duration = audioBuffer.duration;
-                                if (duration > fadeDuration * 2) {
-                                    gainNode.gain.setValueAtTime(1, audioContext.currentTime + duration - fadeDuration);
-                                    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
+                                const now = audioContext.currentTime;
+                                const startAt = Math.max(this.nextTime || 0, now + 0.03);
+                                const fadeDuration = 0.02;
+                                if (!this.started) {
+                                    gainNode.gain.setValueAtTime(0, startAt);
+                                    gainNode.gain.linearRampToValueAtTime(1, startAt + fadeDuration);
+                                    this.started = true;
+                                } else {
+                                    gainNode.gain.setValueAtTime(1, startAt);
                                 }
 
-                                // 连接节点并开始播放
-                                this.source.connect(gainNode);
+                                src.connect(gainNode);
                                 gainNode.connect(audioContext.destination);
+                                src.start(startAt);
+                                this.nextTime = startAt + audioBuffer.duration;
+                                this.source = src;
+                                log(`预约播放 ${samples.length} 个样本，约 ${(samples.length / SAMPLE_RATE).toFixed(2)} 秒`, 'info');
 
-                                this.lastPlayTime = audioContext.currentTime;
-                                log(`开始播放 ${currentSamples.length} 个样本，约 ${(currentSamples.length / SAMPLE_RATE).toFixed(2)} 秒`, 'info');
-
-                                // 播放结束后的处理
-                                this.source.onended = () => {
-                                    this.source = null;
-                                    this.playing = false;
-
-                                    // 使用setTimeout避免递归调用
-                                    setTimeout(() => {
-                                        // 如果队列中还有数据，继续播放
-                                        if (this.queue.length > 0) {
-                                            this.startPlaying();
-                                        } else if (audioBufferQueue.length > 0) {
-                                            // 缓冲区有新数据，进行解码
-                                            const frames = [...audioBufferQueue];
-                                            audioBufferQueue = [];
-                                            this.decodeOpusFrames(frames);
-                                        } else if (this.endOfStream) {
-                                            // 流已结束且没有更多数据
-                                            log("音频播放完成", 'info');
-                                            isAudioPlaying = false;
-                                            this.endOfStream = false;
-                                            streamingContext = null;
-                                        } else {
-                                            // 等待更多数据
-                                            setTimeout(() => {
-                                                // 如果仍然没有新数据，但有更多的包到达
-                                                if (this.queue.length === 0 && audioBufferQueue.length > 0) {
-                                                    const frames = [...audioBufferQueue];
-                                                    audioBufferQueue = [];
-                                                    this.decodeOpusFrames(frames);
-                                                } else if (this.queue.length === 0 && audioBufferQueue.length === 0) {
-                                                    // 真的没有更多数据了
-                                                    log("音频播放完成 (超时)", 'info');
-                                                    isAudioPlaying = false;
-                                                    streamingContext = null;
-                                                }
-                                            }, 500); // 500ms超时
-                                        }
-                                    }, 10); // 10ms延迟，避免立即递归
+                                src.onended = () => {
+                                    if (this.source === src) this.source = null;
+                                    setTimeout(() => this.pump(), 0);
                                 };
+                                return true;
+                            },
 
-                                this.source.start();
+                            // 手里有多少就排多少，排不满一片为止
+                            pump: function () {
+                                this.playing = true;
+                                while (this.queue.length >= SAMPLE_RATE * MIN_AUDIO_DURATION) {
+                                    if (!this.scheduleSlice()) break;
+                                }
+                                if (!this.source && this.queue.length === 0) {
+                                    this.playing = false;
+                                    if (this.endOfStream) {
+                                        log('音频播放完成', 'info');
+                                        isAudioPlaying = false;
+                                        this.endOfStream = false;
+                                        streamingContext = null;
+                                    } else if (!this.idleTimer) {
+                                        // 服务端万一没发 stop：静默 3 秒就把状态归零，
+                                        // 否则 isAudioPlaying 一直挂着 true，下一轮彻底不播
+                                        this.idleTimer = setTimeout(() => {
+                                            this.idleTimer = null;
+                                            if (streamingContext === this && this.queue.length === 0 && !this.source) {
+                                                resetAudioPlayback('静默超时');
+                                            }
+                                        }, 3000);
+                                    }
+                                }
+                            },
+
+                            startPlaying: function () {
+                                if (this.queue.length === 0) return;
+                                this.pump();
                             }
                         };
                     }
@@ -1462,6 +1494,16 @@
                                     log(`语音段结束: ${message.text}`, 'info');
                                 } else if (message.state === 'stop') {
                                     log('服务器语音传输结束', 'info');
+                                    // 有播放上下文就先收尾，让已预约的片段播完；
+                                    // 直接 reset 会把排在时钟上的尾巴一起掐掉
+                                    if (streamingContext) {
+                                        streamingContext.endOfStream = true;
+                                        if (!streamingContext.source && streamingContext.queue.length === 0) {
+                                            resetAudioPlayback('收到 stop（已播完）');
+                                        }
+                                    } else {
+                                        resetAudioPlayback('收到 stop');
+                                    }
                                     // 结束后更新UI状态
                                     if (recordButton.disabled) {
                                         recordButton.disabled = false;
@@ -2421,11 +2463,27 @@
                 const opusData = new Uint8Array(arrayBuffer);
 
                 if (opusData.length > 0) {
+                    // 正在播放且播放上下文还活着：直接喂给当前上下文继续排进音频时钟。
+                    // 原来的写法只把包塞进 audioBufferQueue，而消费它的 playBufferedAudio()
+                    // 被 isAudioPlaying 挡住，于是第一段（约 0.5 秒）播完，后面的包全部堆死——
+                    // 听感就是「只说了两个字就没声了」。
+                    if (isAudioPlaying && streamingContext) {
+                        if (streamingContext.endOfStream) {
+                            streamingContext.endOfStream = false; // 新一轮又来了
+                        }
+                        streamingContext.decodeOpusFrames([opusData]);
+                        return;
+                    }
+
                     // 将数据添加到缓冲队列
                     audioBufferQueue.push(opusData);
 
                     // 如果收到的是第一个音频包，开始缓冲过程
                     if (audioBufferQueue.length === 1 && !isAudioBuffering && !isAudioPlaying) {
+                        startAudioBuffering();
+                    } else if (isAudioPlaying && !streamingContext && audioBufferQueue.length >= 3) {
+                        // 上一个播放上下文没了还挂着「正在播」：重置，别让后面的包堵死
+                        resetAudioPlayback('播放卡住');
                         startAudioBuffering();
                     }
                 } else {

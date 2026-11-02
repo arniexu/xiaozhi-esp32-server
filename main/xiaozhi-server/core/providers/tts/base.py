@@ -26,6 +26,33 @@ import traceback
 TAG = __name__
 logger = setup_logging()
 
+# 高频短句（"我看看啊。""好嘞。"）每次都要合成一遍是浪费：
+# 同一句话合成结果按 (provider, voice, text) 缓存成 opus，命中直接返回，省掉整条 TTS 链路。
+_PHRASE_CACHE = {}
+_PHRASE_CACHE_LOCK = threading.Lock()
+_PHRASE_CACHE_MAX = 64
+
+
+def _phrase_key(provider, text):
+    return (
+        type(provider).__module__,
+        getattr(provider, "voice", ""),
+        getattr(provider, "speaker", ""),
+        text,
+    )
+
+
+def cache_lookup(provider, text):
+    with _PHRASE_CACHE_LOCK:
+        return _PHRASE_CACHE.get(_phrase_key(provider, text))
+
+
+def cache_store(provider, text, data):
+    with _PHRASE_CACHE_LOCK:
+        if len(_PHRASE_CACHE) >= _PHRASE_CACHE_MAX:
+            _PHRASE_CACHE.pop(next(iter(_PHRASE_CACHE)), None)
+        _PHRASE_CACHE[_phrase_key(provider, text)] = data
+
 
 class TTSProviderBase(ABC):
     def __init__(self, config, delete_audio_file):
@@ -79,6 +106,10 @@ class TTSProviderBase(ABC):
 
     def to_tts(self, text):
         text = MarkdownCleaner.clean_markdown(text)
+        cached = cache_lookup(self, text)
+        if cached is not None:
+            logger.bind(tag=TAG).debug(f"短语缓存命中: {text}")
+            return cached
         max_repeat_time = 5
         if self.delete_audio_file:
             # 需要删除文件的直接转为音频数据
@@ -89,6 +120,7 @@ class TTSProviderBase(ABC):
                         audio_datas, _ = audio_bytes_to_data(
                             audio_bytes, file_type=self.audio_file_type, is_opus=True
                         )
+                        cache_store(self, text, audio_datas)
                         return audio_datas
                     else:
                         max_repeat_time -= 1

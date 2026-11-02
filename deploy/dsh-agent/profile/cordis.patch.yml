@@ -1,0 +1,34 @@
+# elder_helper 的「自动化档」：同一套 dsh-base + 同样的模型，但跑 ACP 应用（无 UI），
+# 由小智服务端通过 stdio 驱动。web 版 elder_helper 仍然是人的入口，两者互不影响。
+#
+# 与 ~/.dsh/profiles/elder_helper/cordis.patch.yml 对齐的部分：模型 deepseek-flash、
+# reasoningEffort max。差别只在应用形态和系统提示（这里要说人话，因为回复会被念出来）。
+
+# 语音档不要加载任何 AGENTS.md / CLAUDE.md（含 ~/.dsh 全局那份编程约束）：
+# 那些规则是给写代码的会话用的，混进语音回复里既慢又跑题。
+- id: agent-instructions
+  config:
+    maxBytes: 65536
+    instructionFileCandidates: []
+
+- id: system-prompt
+  config:
+    personaPrefix: >-
+      你是一位耐心、温暖的中文陪伴助手，和用户像老朋友一样聊天。
+      你的回答会被直接朗读成语音：只输出口语化正文，不要 markdown、列表、标题、
+      代码块、表情符号或括号里的动作描写；每次回答尽量一到三句，先回应对方的话。
+
+- id: agent-default-model
+  name: '@deepseek-ai/dsh-agent-default-model'
+  config:
+    provider: deepseek-official
+    model: deepseek-flash
+    # 陪伴场景要的是「快」而不是「想得深」：实测 max → low 后简单问答更利索
+    reasoningEffort: low
+
+# acp 条目由 @deepseek-ai/dsh-acp-app 插入，这里只覆盖模型选择
+- id: acp
+  config:
+    provider: deepseek-official
+    model: deepseek-flash
+    reasoningEffort: low

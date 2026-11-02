@@ -55,6 +55,11 @@ bash main/xiaozhi-server/scripts/install-singleton-service.sh status   # 查看�
 
 > 日常维护已集成在同一脚本：`{start|stop|restart|status|logs|uninstall}`
 > （等价 systemctl --user 命令与故障速查见 docs/singleton-mode-start.md）。
+> **防重复安装**：`install` 幂等（重复执行只覆盖同一个用户级 unit，不会装出第二份）；
+> 若机器上存在**系统级同名 unit**（`/etc/systemd/system/xiaozhi-server.service`，来自
+> `install-all-services.sh` 全模块安装），`install` 会拒绝执行并给出清理命令；
+> `start/restart` 在系统级实例运行或已启用（开机自启）时同样拒绝 —— 避免"用户级+系统级"
+> 双实例抢端口、失败重启循环写日志（SD 卡/小盘机器尤其敏感）。
 
 ## 5. 验收（原样复用，通过标准：三项全过）
 

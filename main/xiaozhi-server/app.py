@@ -1,3 +1,4 @@
+import os
 import sys
 import uuid
 import signal
@@ -12,6 +13,37 @@ from core.utils.util import check_ffmpeg_installed
 
 TAG = __name__
 logger = setup_logging()
+
+
+def sanitize_no_proxy_env() -> None:
+    """把 NO_PROXY 里带方括号的 IPv6 条目去掉。
+
+    有些环境会把 no_proxy 写成 ``localhost,127.0.0.1,::1,[::1]``。httpx 0.27 在
+    构建代理挂载表时用 URLPattern 解析每个条目，遇到 ``[::1]`` 会抛
+    ``InvalidURL: Invalid port: ':1]'``——于是**任何在连接初始化阶段创建
+    httpx/OpenAI 客户端的组件**（典型是 intent_llm 配的独立 LLM）实例化失败，
+    异常被 _initialize_components 捕获后，后面的意图识别、上报线程、提示词增强
+    全部被跳过，表现为：能连上、文字聊天正常，但语音说话没反应。
+    """
+    for name in ("NO_PROXY", "no_proxy"):
+        raw = os.environ.get(name)
+        if not raw:
+            continue
+        parts = [part.strip() for part in raw.split(",") if part.strip()]
+        kept = [
+            part
+            for part in parts
+            if not (part.startswith("[") and part.endswith("]"))
+        ]
+        if len(kept) == len(parts):
+            continue
+        if "::1" not in kept:
+            kept.append("::1")  # 别把 IPv6 回环整个丢出白名单
+        cleaned = ",".join(kept)
+        os.environ[name] = cleaned
+        logger.bind(tag=TAG).warning(
+            f"{name} 含 httpx 无法解析的 IPv6 写法（如 [::1]），已规范化为: {cleaned}"
+        )
 
 
 async def wait_for_exit() -> None:
@@ -43,6 +75,7 @@ async def monitor_stdin():
 
 
 async def main():
+    sanitize_no_proxy_env()
     check_ffmpeg_installed()
     config = load_config()
 

@@ -250,9 +250,16 @@ def audio_bytes_to_data(audio_bytes, file_type, is_opus=True):
         return pcm_to_data(raw_data, is_opus), duration
 
 
+# 下行 opus 码率（bps）。默认 OPUS_AUTO 实测只有 15.6kbps，语音明显发糊。
+OPUS_BITRATE = 32000
+
+
 def pcm_to_data(raw_data, is_opus=True):
     # 初始化Opus编码器
     encoder = opuslib_next.Encoder(16000, 1, opuslib_next.APPLICATION_AUDIO)
+    # 码率：libopus 默认是 OPUS_AUTO，实测 16k 单声道只有 15.6kbps，语音发糊/发沙。
+    # 显式设到 32kbps（宽带语音的常用档），只影响"沙不沙"，补不出 8kHz 音源缺的高频。
+    encoder.bitrate = OPUS_BITRATE
 
     # 编码参数
     frame_duration = 60  # 60ms per frame

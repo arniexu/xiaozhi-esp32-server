@@ -13,6 +13,7 @@
 | 3 | CR venv | `ls <knowledge-agent-service>/.venv/bin/python` | 存在 |
 | 4 | Pi 局域网 IP | `hostname -I` | 如 `192.168.1.50`（设备固件要填） |
 | 5 | 端口空闲 | `ss -ltn \| grep -E ':(8000\|8003\|8765)'` | 无输出 |
+| 6 | 无系统级同名 unit | `systemctl show -p FragmentPath --value xiaozhi-server` | 空（有输出=重复安装风险，见 §7 清理） |
 
 ## 1. 启动顺序（CR 先，xiaozhi 后）
 
@@ -93,6 +94,7 @@ bash main/xiaozhi-server/scripts/run-acceptance.sh
 |---|---|---|
 | `Address already in use`（8000/8003） | 端口被占（开发机常见：pyserver） | `ss -ltnp \| grep ':8000'` 找到并停掉；或改 `server.port` |
 | 服务反复 `activating (auto-restart)` | 配置 YAML 语法错 / 密钥缺失 | 看日志首个 `Traceback`；核对 `data/.config.yaml` 缩进与必填密钥 |
+| `install` 报"检测到系统级同名 unit"被拒绝 | 机器曾装过全模块系统级服务（`/etc/systemd/system/xiaozhi-server.service`） | 按脚本提示清理：`sudo systemctl disable --now xiaozhi-server` → `sudo rm -f /etc/systemd/system/xiaozhi-server.service` → `sudo systemctl daemon-reload` |
 | 日志报找不到 `app.py` | venv 或 WorkingDirectory 不对 | 重跑 `bash main/xiaozhi-server/scripts/install-singleton-service.sh` |
 | 对话正常但召回为空 | CR 未启动 / `service_url` 错 / workspace 不匹配 | `curl -s http://127.0.0.1:8765/health`；核对 `Memory.context_recall` 段 |
 | ASR 报 `InvalidTimeStamp.Expired` | 系统时钟偏差 >15 分钟 | `timedatectl` 校准（或等 NTP 同步） |
